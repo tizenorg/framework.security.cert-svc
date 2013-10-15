@@ -82,7 +82,7 @@ bool VCoreInit(const std::string& configFilePath,
 {
     if(threadInterface) {
         LogDebug("Already Initialized");
-        return false;
+        return true;
     }
 
     threadInterface = new DPL::DB::ThreadDatabaseSupport(
@@ -95,10 +95,10 @@ bool VCoreInit(const std::string& configFilePath,
 
     LogDebug("Initializing VCore");
     Config &globalConfig = ConfigSingleton::Instance();
-    bool returnValue = globalConfig.setXMLConfigPath(configFilePath) &&
+    globalConfig.setXMLConfigPath(configFilePath) &&
         globalConfig.setXMLSchemaPath(configSchemaPath);
 
-    return returnValue;
+    return true;
 }
 
 void VCoreDeinit()

@@ -300,7 +300,7 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
 
         n = m_pList->size();
 
-        char* pList[n+1];
+        char* pList[n];
         std::list<std::string>::const_iterator itr = m_pList->begin();
         std::string tmpString;
         char* uri = NULL;
@@ -396,6 +396,10 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
     }
 
 done:
+    m_pList = NULL;
+    m_noHash = false;
+    m_partialHash = false;
+
     /*   cleanup */
     if (dsigCtx != NULL) {
         xmlSecDSigCtxDestroy(dsigCtx);
