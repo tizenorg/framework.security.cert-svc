@@ -1,0 +1,6 @@
+DATABASE_START(vcore)
+
+#include "vcore_db"
+#include "version_db"
+
+DATABASE_END()

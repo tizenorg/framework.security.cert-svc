@@ -1,0 +1,13 @@
+/usr/bin/cert_svc_create_clean_db.sh
+/usr/lib/*.so.*
+/usr/bin/dpkg-pki-sig
+/opt/share/cert-svc/targetinfo
+/usr/share/cert-svc/cert_svc_vcore_db.sql
+/usr/share/cert-svc/fingerprint_list.xml
+/usr/share/cert-svc/fingerprint_list.xsd
+/usr/share/cert-svc/schema.xsd
+/opt/share/cert-svc/certs/code-signing/wac/wac0.root.preproduction.pem
+/opt/share/cert-svc/certs/code-signing/wac/wac0.root.production.pem
+/opt/share/cert-svc/certs/code-signing/wac/wac0.publisherid.pem
+/opt/share/cert-svc/certs/code-signing/wac/tizen0.root.preproduction.cert.pem
+

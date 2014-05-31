@@ -1,0 +1,11 @@
+prefix=@PREFIX@
+exec_prefix=@EXEC_PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: certification-service
+Description: Certification Service
+Version: @VERSION@
+Requires: openssl
+Libs: -L${libdir} -lcert-svc
+Cflags: -I${includedir}/cert-svc/

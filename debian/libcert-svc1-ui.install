@@ -1,0 +1,7 @@
+/opt/ug/lib/libmgr-cert-common.so
+/opt/ug/lib/libmgr-cert-view.so
+/opt/ug/lib/libug-setting-manage-certificates-efl.so.*
+/opt/ug/lib/libug-setting-manage-certificates-efl.so
+/opt/ug/res/edje/ug-setting-manage-certificates-efl/
+/opt/ug/res/images/ug-setting-manage-certificates-efl/
+/opt/ug/res/locale/*/*/ug-setting-manage-certificates-efl.mo

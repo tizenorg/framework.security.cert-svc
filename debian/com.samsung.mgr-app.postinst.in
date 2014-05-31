@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# file owner
+if [ ${USER} == "root" ]
+then
+	echo "Test if"
+else
+	eche "Test else"
+fi
+

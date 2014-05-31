@@ -1,0 +1,12 @@
+prefix=@PREFIX@
+exec_prefix=@EXEC_PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@/cert-svc
+
+Name: cert-svc-vcore
+Description: cert-svc-vcore
+Version: @VERSION@
+Requires: cert-svc libxml-2.0 libxslt openssl libsoup-2.4 dpl-efl secure-storage xmlsec1
+Libs: -lcert-svc-vcore -L${libdir}
+Cflags: -I${includedir}
+

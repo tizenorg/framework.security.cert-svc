@@ -1,0 +1,23 @@
+SQL(
+    PRAGMA foreign_keys = ON;
+    BEGIN TRANSACTION;
+)
+CREATE_TABLE(OCSPResponseStorage)
+    COLUMN_NOT_NULL(cert_chain,        TEXT,)
+    COLUMN(end_entity_check,           INT,)
+    COLUMN(ocsp_status,                INT,)
+    COLUMN(next_update_time,           BIGINT,)
+    TABLE_CONSTRAINTS(
+      PRIMARY KEY(cert_chain, end_entity_check)
+    )
+CREATE_TABLE_END()
+
+CREATE_TABLE(CRLResponseStorage)
+    COLUMN_NOT_NULL(distribution_point,TEXT,       primary key)
+    COLUMN_NOT_NULL(crl_body,          TEXT,)
+    COLUMN(next_update_time,           BIGINT,)
+CREATE_TABLE_END()
+
+SQL(
+    COMMIT;
+)
