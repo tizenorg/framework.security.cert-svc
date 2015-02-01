@@ -1,0 +1,6 @@
+V	120512012141Z		00	unknown	/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/OU=chain1/CN=chain1/emailAddress=chain1
+V	120512012202Z		01	unknown	/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/OU=chain2/CN=chain2/emailAddress=chain2
+V	120512012213Z		02	unknown	/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/OU=chain3/CN=chain3/emailAddress=chain3
+V	120512012224Z		03	unknown	/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/OU=chain4/CN=chain4/emailAddress=chain4
+V	120512012235Z		04	unknown	/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/OU=chain5/CN=chain5/emailAddress=chain5
+V	120512012313Z		05	unknown	/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/OU=server/CN=server/emailAddress=server

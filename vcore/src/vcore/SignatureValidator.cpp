@@ -20,10 +20,11 @@
  * @brief       Implementatin of tizen signature validation protocol.
  */
 #include <vcore/SignatureValidator.h>
-
+#include <vcore/CertificateCollection.h>
 #include <dpl/log/log.h>
-
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 #include <vcore/CertificateVerifier.h>
+#endif
 #include <vcore/Certificate.h>
 #include <vcore/OCSPCertMgrUtil.h>
 #include <vcore/ReferenceValidator.h>
@@ -40,7 +41,7 @@ const std::string TOKEN_ROLE_DISTRIBUTOR_URI =
 const std::string TOKEN_PROFILE_URI =
     "http://www.w3.org/ns/widgets-digsig#profile";
 
-const char* TIZEN_STORE_CN = "Tizen Store";
+//const char* TIZEN_STORE_CN = "Tizen Store"; //un-used variable
 
 } // namespace anonymouse
 
@@ -57,7 +58,7 @@ static tm _ASN1_GetTimeT(ASN1_TIME* time)
     {
         t.tm_year = (str[i++] - '0') * 10 + (str[++i] - '0');
         if (t.tm_year < 70)
-        t.tm_year += 100;
+            t.tm_year += 100;
     }
     else if (time->type == V_ASN1_GENERALIZEDTIME) /* four digit year */
     {
@@ -91,9 +92,11 @@ public:
     explicit ImplSignatureValidator(bool ocspEnable,
                   bool crlEnable,
                   bool complianceMode)
-      : m_ocspEnable(ocspEnable)
-      , m_crlEnable(crlEnable)
-      , m_complianceModeEnabled(complianceMode)
+      : m_complianceModeEnabled(complianceMode)
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	  ,	m_ocspEnable(ocspEnable)
+      , m_crlEnable(crlEnable) 
+	#endif
     {}
 
     virtual ~ImplSignatureValidator(){ }
@@ -143,9 +146,11 @@ public:
         return true;
     }
 protected:
+    bool m_complianceModeEnabled;
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     bool m_ocspEnable;
     bool m_crlEnable;
-    bool m_complianceModeEnabled;
+#endif
 };
 
 class ImplTizenSignatureValidator : public SignatureValidator::ImplSignatureValidator
@@ -214,6 +219,8 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
         << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
     LogDebug("Is root certificate from TIZEN_TEST domain:  "
         << storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
+        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
     LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
     LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
@@ -240,7 +247,9 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
    }
    else
    {
-      LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+		//Additional Check for certificate registration
+
       if (data.getSignatureNumber() == 1)
       {
          if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
@@ -249,7 +258,7 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
          }
          else
          {
-            LogWarning("author-signature.xml has got unrecognized Root CA "
+            LogWarning("signature1.xml has got unrecognized Root CA "
                        "certificate. Signature will be disregarded.");
             disregard = true;
          }
@@ -259,12 +268,17 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
     data.setStorageType(storeIdSet);
     data.setSortedCertificateList(sortedCertificateList);
 
+    // We add only Root CA certificate because WAC ensure that the rest
+    // of certificates are present in signature files ;-)
     XmlSec::XmlSecContext context;
     context.signatureFile = data.getSignatureFileName();
     context.certificatePtr = root;
 
-   if (!(root->isSignedBy(root))) {
-       LogWarning("Root CA certificate not found. Chain is incomplete.");
+    // Now we should have full certificate chain.
+    // If the end certificate is not ROOT CA we should disregard signature
+    // but still signature must be valid... Aaaaaa it's so stupid...
+    if (!(root->isSignedBy(root))) {
+        LogWarning("Root CA certificate not found. Chain is incomplete.");
     //  context.allowBrokenChain = true;
     }
 
@@ -277,29 +291,80 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
     ASN1_TIME* notBeforeTime = data.getEndEntityCertificatePtr()->getNotBeforeTime();
 
     if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
-	{
-	  struct tm *t;
-	  struct tm ta;
-	  char msg[1024];
-	  
-	  t = localtime(&nowTime);
+    {
+      struct tm *t;
+      struct tm ta, tb, tc;
+      char msg[1024];
 
-	  sprintf(msg, "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
-	  LogDebug("## System's current Year : " << msg);
-	  fprintf(stderr, "## System's current Year : %s\n", msg);
-	  
-	  ta = _ASN1_GetTimeT(notBeforeTime);
-	  sprintf(msg, "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-	  LogDebug("## certificate's notBefore Year : " << msg);
-	  fprintf(stderr, "## certificate's notAfterTime Year : %s\n", msg);
-	  
-	  ta = _ASN1_GetTimeT(notAfterTime);
-	  sprintf(msg, "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-	  LogDebug("## certificate's notAfterTime Year : " << msg);
-	  fprintf(stderr, "## certificate's notAfterTime Year : %s\n", msg);
-	 
-	  return SignatureValidator::SIGNATURE_INVALID;
-	}
+      t = localtime(&nowTime);
+
+      memset(&tc, 0, sizeof(tc));
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
+      LogDebug("## System's currentTime : " << msg);
+      fprintf(stderr, "## System's currentTime : %s\n", msg);
+
+      tb = _ASN1_GetTimeT(notBeforeTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
+      LogDebug("## certificate's notBeforeTime : " << msg);
+      fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
+
+      ta = _ASN1_GetTimeT(notAfterTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
+      LogDebug("## certificate's notAfterTime : " << msg);
+      fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
+
+      if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
+      {
+        LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+        fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
+        return SignatureValidator::SIGNATURE_INVALID;
+      }
+
+      int year = (ta.tm_year - tb.tm_year) / 4;
+
+      if(year == 0)
+      {
+          tc.tm_year = tb.tm_year; 
+          tc.tm_mon = tb.tm_mon + 1;
+          tc.tm_mday = tb.tm_mday;
+
+          if(tc.tm_mon == 12)
+          {
+              tc.tm_year = ta.tm_year;       
+              tc.tm_mon = ta.tm_mon - 1;
+              tc.tm_mday = ta.tm_mday;
+              
+              if(tc.tm_mon < 0)
+              {
+                 tc.tm_year = ta.tm_year;
+                 tc.tm_mon = ta.tm_mon;
+                 tc.tm_mday = ta.tm_mday -1;
+
+                 if(tc.tm_mday == 0)
+                 {
+                    tc.tm_year = tb.tm_year;                
+                    tc.tm_mon = tb.tm_mon;
+                    tc.tm_mday = tb.tm_mday +1;
+                 }
+              }
+          }          
+      }
+      else{
+         tc.tm_year = tb.tm_year + year;
+         tc.tm_mon = (tb.tm_mon + ta.tm_mon )/2;
+         tc.tm_mday = (tb.tm_mday + ta.tm_mday)/2;  
+      }
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
+      LogDebug("## cmp cert with validation time : " << msg);
+      fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
+
+      time_t outCurrent = mktime(&tc);
+      context.validationTime = outCurrent;
+      fprintf(stderr, "## cmp outCurrent time : %ld\n", outCurrent);
+      //return SignatureValidator::SIGNATURE_INVALID;
+    }
 
 #endif
     // WAC 2.0 SP-2066 The wrt must not block widget installation
@@ -367,6 +432,7 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
     }
  */
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
     // ocspCheck will throw an exception on any error.
     // TODO Probably we should catch this exception and add
@@ -390,9 +456,12 @@ SignatureValidator::Result ImplTizenSignatureValidator::check(
         if (result == VERIFICATION_STATUS_UNKNOWN ||
             result == VERIFICATION_STATUS_ERROR)
         {
+            #ifdef _OCSP_POLICY_DISREGARD_UNKNOWN_OR_ERROR_CERTS_
             disregard = true;
+	    #endif
         }
     }
+#endif
 
     if (disregard) {
         LogWarning("Signature is disregard. RootCA is not a member of Tizen.");
@@ -411,7 +480,7 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
 
     bool disregard = false;
     bool partialHash = false;
-
+   
     if (!checkRoleURI(data)) {
         return SignatureValidator::SIGNATURE_INVALID;
     }
@@ -453,6 +522,8 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
         << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
     LogDebug("Is root certificate from TIZEN_TEST domain:  "
         << storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
+        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
     LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
     LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
@@ -479,7 +550,9 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
    }
    else
    {
-      LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+	LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+		//Additional Check for certificate registration
+
       if (data.getSignatureNumber() == 1)
       {
          if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
@@ -488,7 +561,7 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
          }
          else
          {
-            LogWarning("author-signature.xml has got unrecognized Root CA "
+            LogWarning("signature1.xml has got unrecognized Root CA "
                        "certificate. Signature will be disregarded.");
             disregard = true;
          }
@@ -525,28 +598,48 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
   
 	if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
 	{
-	  struct tm *t;
-	  struct tm ta;
-	  char msg[1024];
-	  
-	  t = localtime(&nowTime);
+      struct tm *t;
+      struct tm ta, tb, tc;
+      char msg[1024];
 
-	  sprintf(msg, "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
-	  LogDebug("## System's current Year : " << msg);
-	  fprintf(stderr, "## System's current Year : %s\n", msg);
-	  
-	  ta = _ASN1_GetTimeT(notBeforeTime);
-	  sprintf(msg, "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-	  LogDebug("## certificate's notBefore Year : " << msg);
-	  fprintf(stderr, "## certificate's notAfterTime Year : %s\n", msg);
-	  
-	  ta = _ASN1_GetTimeT(notAfterTime);
-	  sprintf(msg, "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-	  LogDebug("## certificate's notAfterTime Year : " << msg);
-	  fprintf(stderr, "## certificate's notAfterTime Year : %s\n", msg);
-	 
-	  return SignatureValidator::SIGNATURE_INVALID;
-	}
+      t = localtime(&nowTime);
+
+      memset(&tc, 0, sizeof(tc));
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
+      LogDebug("## System's currentTime : " << msg);
+      fprintf(stderr, "## System's currentTime : %s\n", msg);
+
+      tb = _ASN1_GetTimeT(notBeforeTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
+      LogDebug("## certificate's notBeforeTime : " << msg);
+      fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
+
+      ta = _ASN1_GetTimeT(notAfterTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
+      LogDebug("## certificate's notAfterTime : " << msg);
+      fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
+
+      if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
+      {
+         LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+         fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
+         return SignatureValidator::SIGNATURE_INVALID;
+      }
+
+      int year = (ta.tm_year - tb.tm_year) / 4;
+      tc.tm_year = tb.tm_year + year;
+      tc.tm_mon = (tb.tm_mon + ta.tm_mon )/2;
+      tc.tm_mday = (tb.tm_mday + ta.tm_mday)/2;
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
+      LogDebug("## cmp cert with validation time : " << msg);
+      fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
+
+      time_t outCurrent = mktime(&tc);
+      context.validationTime = outCurrent;
+      //return SignatureValidator::SIGNATURE_INVALID;
+    }
 
 #endif
 
@@ -614,7 +707,7 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
    data.setReference(context.referenceSet);
    //if (!checkObjectReferences(data)) {
    //     return SignatureValidator::SIGNATURE_INVALID;
-   //}
+  // }
 
   /*
     ReferenceValidator fileValidator(widgetContentPath);
@@ -624,6 +717,7 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
     }
  */
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
     // ocspCheck will throw an exception on any error.
     // TODO Probably we should catch this exception and add
@@ -647,9 +741,12 @@ SignatureValidator::Result ImplTizenSignatureValidator::checkList(SignatureData 
         if (result == VERIFICATION_STATUS_UNKNOWN ||
             result == VERIFICATION_STATUS_ERROR)
         {
+	    #ifdef _OCSP_POLICY_DISREGARD_UNKNOWN_OR_ERROR_CERTS_
             disregard = true;
+	    #endif
         }
     }
+#endif
 
     if (disregard) {
         LogWarning("Signature is disregard. RootCA is not a member of Tizen.");
@@ -733,6 +830,8 @@ SignatureValidator::Result ImplWacSignatureValidator::check(
         << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
     LogDebug("Is root certificate from TIZEN_TEST domain:  "
         << storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
+        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
     LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
     LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
@@ -758,6 +857,9 @@ SignatureValidator::Result ImplWacSignatureValidator::check(
         LogDebug("Root CA for author signature is correct.");
     } else {
         LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+
+		//Additional Check for certificate registration
+
        if (data.getSignatureNumber() == 1)
        {
           if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
@@ -766,7 +868,7 @@ SignatureValidator::Result ImplWacSignatureValidator::check(
           }
           else
           {
-             LogWarning("author-signature.xml has got unrecognized Root CA "
+          LogWarning("signature1.xml has got unrecognized Root CA "
                         "certificate. Signature will be disregarded.");
              disregard = true;
           }
@@ -799,31 +901,50 @@ SignatureValidator::Result ImplWacSignatureValidator::check(
     ASN1_TIME* notAfterTime = data.getEndEntityCertificatePtr()->getNotAfterTime();
     ASN1_TIME* notBeforeTime = data.getEndEntityCertificatePtr()->getNotBeforeTime();
 
- 
-	if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
+ 	if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
 	{
-	  struct tm *t;
-	  struct tm ta;
-	  char msg[1024];
-	  
-	  t = localtime(&nowTime);
+      struct tm *t;
+      struct tm ta, tb, tc;
+      char msg[1024];
 
-	  sprintf(msg, "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
-	  LogDebug("## System's current Year : " << msg);
-	  fprintf(stderr, "## System's current Year : %s\n", msg);
-	  
-	  ta = _ASN1_GetTimeT(notBeforeTime);
-	  sprintf(msg, "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-	  LogDebug("## certificate's notBefore Year : " << msg);
-	  fprintf(stderr, "## certificate's notAfterTime Year : %s\n", msg);
-	  
-	  ta = _ASN1_GetTimeT(notAfterTime);
-	  sprintf(msg, "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-	  LogDebug("## certificate's notAfterTime Year : " << msg);
-	  fprintf(stderr, "## certificate's notAfterTime Year : %s\n", msg);
-	 
-	  return SignatureValidator::SIGNATURE_INVALID;
-	}
+      t = localtime(&nowTime);
+
+      memset(&tc, 0, sizeof(tc));
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
+      LogDebug("## System's currentTime : " << msg);
+      fprintf(stderr, "## System's currentTime : %s\n", msg);
+
+      tb = _ASN1_GetTimeT(notBeforeTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
+      LogDebug("## certificate's notBeforeTime : " << msg);
+      fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
+
+      ta = _ASN1_GetTimeT(notAfterTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
+      LogDebug("## certificate's notAfterTime : " << msg);
+      fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
+
+      if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
+      {
+         LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+         fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
+         return SignatureValidator::SIGNATURE_INVALID;
+      }
+
+      int year = (ta.tm_year - tb.tm_year) / 4;
+      tc.tm_year = tb.tm_year + year;
+      tc.tm_mon = (tb.tm_mon + ta.tm_mon )/2;
+      tc.tm_mday = (tb.tm_mday + ta.tm_mday)/2;
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
+      LogDebug("## cmp cert with validation time : " << msg);
+      fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
+
+      time_t outCurrent = mktime(&tc);
+      context.validationTime = outCurrent;
+      //return SignatureValidator::SIGNATURE_INVALID;
+    }
   
 #endif
 
@@ -884,6 +1005,7 @@ SignatureValidator::Result ImplWacSignatureValidator::check(
         return SignatureValidator::SIGNATURE_INVALID;
     }
 
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
     // ocspCheck will throw an exception on any error.
     // TODO Probably we should catch this exception and add
@@ -907,9 +1029,12 @@ SignatureValidator::Result ImplWacSignatureValidator::check(
         if (result == VERIFICATION_STATUS_UNKNOWN ||
             result == VERIFICATION_STATUS_ERROR)
         {
+           #ifdef _OCSP_POLICY_DISREGARD_UNKNOWN_OR_ERROR_CERTS_
             disregard = true;
+	    #endif
         }
     }
+#endif
 
     if (disregard) {
         LogWarning("Signature is disregard. RootCA is not a member of Tizen.");

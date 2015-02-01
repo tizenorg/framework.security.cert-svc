@@ -27,7 +27,6 @@
 #include <string>
 
 #include <dpl/exception.h>
-#include <dpl/shared_ptr.h>
 #include <dpl/noncopyable.h>
 #include <dpl/log/log.h>
 

@@ -38,6 +38,9 @@ void c_certsvc_pkcs12_free_certificates(gchar **certs);
 int  c_certsvc_pkcs12_private_key_load(const gchar *alias, char **pkey, gsize *count);
 void c_certsvc_pkcs12_private_key_free(char *buffer);
 int  c_certsvc_pkcs12_delete(const gchar *alias);
+//static void _delete_from_osp_cert_mgr(const char* path);
+int certsvc_load_file_to_buffer(const char* filePath, unsigned char** certBuf, int* length);
+int cert_svc_get_file_size(const char* filepath, unsigned long int* length);
 
 #ifdef __cplusplus
 }

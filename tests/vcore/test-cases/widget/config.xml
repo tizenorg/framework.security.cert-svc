@@ -1,0 +1,6 @@
+<widget xmlns="http://www.w3.org/ns/widgets" id="Test Widget">
+    <name shortname="ShortName">Widget Name OK</name>
+    <version>1.2.3.4</version>
+    <description>A short description of widget</description>
+    <author>Author Name</author>
+</widget>

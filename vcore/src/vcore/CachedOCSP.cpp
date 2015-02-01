@@ -123,13 +123,6 @@ VerificationStatus CachedOCSP::checkEndEntity(CertificateCollection &certs)
     OCSP ocsp;
     ocsp.setTrustedStore(certs.getCertificateList());
 
-    const char *defResponderURI = getenv(OCSPImpl::DEFAULT_RESPONDER_URI_ENV);
-
-    if (defResponderURI) {
-        ocsp.setUseDefaultResponder(true);
-        ocsp.setDefaultResponder(defResponderURI);
-    }
-
     VerificationStatusSet statusSet = ocsp.validateCertificateList(clst);
     db_status.ocsp_status = statusSet.convertToStatus();
     db_status.next_update_time = ocsp.getResponseValidity();

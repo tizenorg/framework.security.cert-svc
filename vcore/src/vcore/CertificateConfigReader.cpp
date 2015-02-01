@@ -33,8 +33,12 @@ const std::string TOKEN_CERTIFICATE_DOMAIN = "CertificateDomain";
 const std::string TOKEN_FINGERPRINT_SHA1 = "FingerprintSHA1";
 
 const std::string TOKEN_ATTR_NAME = "name";
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+const std::string TOKEN_ATTR_URL_NAME = "ocspUrl";
+#endif
 const std::string TOKEN_VALUE_TIZEN_DEVELOPER = "tizen-developer";
 const std::string TOKEN_VALUE_TIZEN_TEST = "tizen-test";
+const std::string TOKEN_VALUE_TIZEN_VERIFY = "tizen-verify";
 const std::string TOKEN_VALUE_VISIBILITY_PUBLIC = "tizen-public";
 const std::string TOKEN_VALUE_VISIBILITY_PARTNER = "tizen-partner";
 const std::string TOKEN_VALUE_VISIBILITY_PARTNER_OPERATOR = "tizen-partner-operator";
@@ -95,7 +99,7 @@ CertificateConfigReader::CertificateConfigReader() :
 void CertificateConfigReader::tokenCertificateDomain(CertificateIdentifier &)
 {
     std::string name = m_parserSchema.getReader().
-            attribute(TOKEN_ATTR_NAME, SaxReader::THROW_DISABLE);
+    		attribute(TOKEN_ATTR_NAME, SaxReader::THROW_DISABLE);
 
     if (name.empty()) {
         LogWarning("Invalid fingerprint file. Domain name is mandatory");
@@ -105,6 +109,8 @@ void CertificateConfigReader::tokenCertificateDomain(CertificateIdentifier &)
         m_certificateDomain = CertStoreId::TIZEN_DEVELOPER;
     } else if (name == TOKEN_VALUE_TIZEN_TEST) {
         m_certificateDomain = CertStoreId::TIZEN_TEST;
+    } else if (name == TOKEN_VALUE_TIZEN_VERIFY) {
+        m_certificateDomain = CertStoreId::TIZEN_VERIFY;
     } else if (name == TOKEN_VALUE_VISIBILITY_PUBLIC) {
         m_certificateDomain = CertStoreId::VIS_PUBLIC;
     } else if (name == TOKEN_VALUE_VISIBILITY_PARTNER) {
@@ -124,6 +130,11 @@ void CertificateConfigReader::tokenCertificateDomain(CertificateIdentifier &)
 void CertificateConfigReader::tokenEndFingerprintSHA1(
         CertificateIdentifier &identificator)
 {
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    std::string url = m_parserSchema.getReader().
+    		attribute(TOKEN_ATTR_URL_NAME, SaxReader::THROW_DISABLE);
+	#endif
+
     std::string text = m_parserSchema.getText();
     text += ":"; // add guard at the end of fingerprint
     Certificate::Fingerprint fingerprint;
@@ -145,6 +156,10 @@ void CertificateConfigReader::tokenEndFingerprintSHA1(
             Assert(0 && "Unussported fingerprint format in xml file.");
         }
     }
+
     identificator.add(fingerprint, m_certificateDomain);
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	identificator.add(fingerprint, url);
+	#endif
 }
 } // namespace ValidationCore

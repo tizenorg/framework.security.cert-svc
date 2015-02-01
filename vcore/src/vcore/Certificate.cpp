@@ -199,6 +199,7 @@ DPL::String Certificate::getOneLine(FieldType type) const
     return DPL::FromUTF8String(buffer);
 }
 
+#ifdef _WEARABLE
 DPL::OptionalString Certificate::getField(FieldType type,
                                      int fieldNid) const
 {
@@ -206,6 +207,15 @@ DPL::OptionalString Certificate::getField(FieldType type,
     X509_NAME_ENTRY *subjectEntry = NULL;
     DPL::Optional < DPL::String > output;
     int entryCount = X509_NAME_entry_count(subjectName);
+#else
+boost::optional<DPL::String> Certificate::getField(FieldType type,
+                                     int fieldNid) const
+{
+    X509_NAME *subjectName = getX509Name(type);
+    X509_NAME_ENTRY *subjectEntry = NULL;
+    boost::optional < DPL::String > output;
+    int entryCount = X509_NAME_entry_count(subjectName);
+#endif
 
     for (int i = 0; i < entryCount; ++i) {
         subjectEntry = X509_NAME_get_entry(subjectName,
@@ -242,6 +252,8 @@ DPL::OptionalString Certificate::getField(FieldType type,
     }
     return output;
 }
+
+#ifdef _WEARABLE
 
 DPL::OptionalString Certificate::getCommonName(FieldType type) const
 {
@@ -311,6 +323,81 @@ DPL::OptionalString Certificate::getOCSPURL() const
     sk_ACCESS_DESCRIPTION_free(aia);
     return retValue;
 }
+
+
+#else
+
+boost::optional<DPL::String> Certificate::getCommonName(FieldType type) const
+{
+    return getField(type, NID_commonName);
+}
+
+boost::optional<DPL::String> Certificate::getCountryName(FieldType type) const
+{
+    return getField(type, NID_countryName);
+}
+
+boost::optional<DPL::String> Certificate::getStateOrProvinceName(FieldType type) const
+{
+    return getField(type, NID_stateOrProvinceName);
+}
+
+boost::optional<DPL::String> Certificate::getLocalityName(FieldType type) const
+{
+    return getField(type, NID_localityName);
+}
+
+boost::optional<DPL::String> Certificate::getOrganizationName(FieldType type) const
+{
+    return getField(type, NID_organizationName);
+}
+
+boost::optional<DPL::String> Certificate::getOrganizationalUnitName(FieldType type) const
+{
+    return getField(type, NID_organizationalUnitName);
+}
+
+boost::optional<DPL::String> Certificate::getEmailAddres(FieldType type) const
+{
+    return getField(type, NID_pkcs9_emailAddress);
+}
+
+boost::optional<DPL::String> Certificate::getOCSPURL() const
+{
+    // TODO verify this code
+    boost::optional<DPL::String> retValue;
+    AUTHORITY_INFO_ACCESS *aia = static_cast<AUTHORITY_INFO_ACCESS*>(
+            X509_get_ext_d2i(m_x509,
+                             NID_info_access,
+                             NULL,
+                             NULL));
+
+    // no AIA extension in the cert
+    if (NULL == aia) {
+        return retValue;
+    }
+
+    int count = sk_ACCESS_DESCRIPTION_num(aia);
+
+    for (int i = 0; i < count; ++i) {
+        ACCESS_DESCRIPTION* ad = sk_ACCESS_DESCRIPTION_value(aia, i);
+
+        if (OBJ_obj2nid(ad->method) == NID_ad_OCSP &&
+            ad->location->type == GEN_URI)
+        {
+            void* data = ASN1_STRING_data(ad->location->d.ia5);
+            retValue = boost::optional<DPL::String>(DPL::FromUTF8String(
+                    static_cast<char*>(data)));
+
+            break;
+        }
+    }
+    sk_ACCESS_DESCRIPTION_free(aia);
+    return retValue;
+}
+
+#endif
+
 
 Certificate::AltNameSet Certificate::getAlternativeNameDNS() const
 {
@@ -393,9 +480,10 @@ ASN1_TIME* Certificate::getNotBeforeTime() const
 bool Certificate::isRootCert()
 {
     // based on that root certificate has the same subject as issuer name
-    return isSignedBy(this->SharedFromThis());
+    return isSignedBy(this->shared_from_this());
 }
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 std::list<std::string>
 Certificate::getCrlUris() const
 {
@@ -443,6 +531,7 @@ Certificate::getCrlUris() const
     sk_DIST_POINT_pop_free(distPoints, DIST_POINT_free);
     return result;
 }
+#endif
 
 long Certificate::getVersion() const
 {

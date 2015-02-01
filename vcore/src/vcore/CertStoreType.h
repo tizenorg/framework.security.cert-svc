@@ -24,6 +24,11 @@
 #ifndef _VALIDATION_CORE_CERTSTORETYPE_H_
 #define _VALIDATION_CORE_CERTSTORETYPE_H_
 
+#include <string.h>
+#ifdef _MOBILE
+#include <boost/optional.hpp>
+#endif
+
 namespace ValidationCore {
 namespace CertStoreId {
 typedef unsigned int Type;
@@ -32,7 +37,7 @@ typedef unsigned int Type;
 const Type TIZEN_DEVELOPER = 1;
 // RootCA certificates for author signatures.
 const Type TIZEN_TEST = 1 << 1;
-
+const Type TIZEN_VERIFY = 1 << 2;
 // RootCA's visibility level : public
 const Type VIS_PUBLIC = 1 << 6;
 // RootCA's visibility level : partner
@@ -51,12 +56,19 @@ class Set
 
     void add(Type second);
 
-    bool contains(Type second) const;
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    void add(std::string ocspUrl);
+    char* getOcspUrl();
+	#endif
 
+	bool contains(Type second) const;
     bool isEmpty() const;
 
   private:
     Type m_certificateStorage;
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    char* m_ocspUrl;
+	#endif
 };
 
 } // namespace CertStoreId

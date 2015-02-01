@@ -21,26 +21,26 @@ then
 fi
 	
 echo "*** pre-requirement ***"
-mkdir ./demoCA
-touch ./demoCA/serial
+/bin/mkdir ./demoCA
+/bin/touch ./demoCA/serial
 echo "00" > ./demoCA/serial
-touch ./demoCA/index.txt
+/bin/touch ./demoCA/index.txt
 
 echo "*** make key pair for SDK ***"
-openssl genrsa -out ${SDK_keyname} 1024
+/usr/bin/openssl genrsa -out ${SDK_keyname} 1024
 
 echo "*** make certificate request ***"
-openssl req -new -days 3650 -key ${SDK_keyname} -out ${SDK_certreqname} \
+/usr/bin/openssl req -new -days 3650 -key ${SDK_keyname} -out ${SDK_certreqname} \
 -subj '/C=KR/ST=Kyung-gi do/L=SuWon-si/O=Samsung/OU=DMC/CN='$5
 
 
 echo "*** make SDK cert ***"
-openssl ca -in ${SDK_certreqname} -out ${SDK_certname} -keyfile ${CA_keyname} -cert ${CA_certname} -outdir . << EOF
+/usr/bin/openssl ca -in ${SDK_certreqname} -out ${SDK_certname} -keyfile ${CA_keyname} -cert ${CA_certname} -outdir . << EOF
 y
 y
 EOF
 
 echo "*** remove temporary files ***"
-rm -f ${SDK_certreqname}
-rm -f *.pem
-rm -rf ./demoCA
+/bin/rm -f ${SDK_certreqname}
+/bin/rm -f *.pem
+/bin/rm -rf ./demoCA

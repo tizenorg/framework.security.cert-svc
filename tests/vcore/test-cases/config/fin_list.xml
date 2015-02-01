@@ -1,0 +1,35 @@
+<CertificateSet>
+    <CertificateDomain name="wacpublisher">
+    </CertificateDomain>
+    <CertificateDomain name="wacroot">
+    </CertificateDomain>
+    <CertificateDomain name="developer">
+    </CertificateDomain>
+    <CertificateDomain name="wacmember">
+    </CertificateDomain>
+    <CertificateDomain name="tizenmember">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E2</FingerprintSHA1>
+    </CertificateDomain>
+    <CertificateDomain name="orangelegacy">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E2</FingerprintSHA1>
+    </CertificateDomain>
+    <CertificateDomain name="fake">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E2</FingerprintSHA1>
+    </CertificateDomain>
+    <CertificateDomain name="tizen-public">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E2</FingerprintSHA1>
+		<FingerprintSHA1>04:C5:A6:1D:75:BB:F5:5C:0F:A2:66:F6:09:4D:9B:2B:5F:3B:44:AE</FingerprintSHA1>
+    </CertificateDomain>
+    <CertificateDomain name="tizen-partner">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E0</FingerprintSHA1>
+		<FingerprintSHA1>67:37:DE:B7:B9:9D:D2:DB:A5:2C:42:DE:CB:2F:2C:3E:33:97:E1:85</FingerprintSHA1>
+    </CertificateDomain>
+    <CertificateDomain name="tizen-partner-operator">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E1</FingerprintSHA1>
+		<FingerprintSHA1>B0:5F:40:43:71:1F:11:BC:9A:6A:62:FA:DA:92:54:79:92:16:11:DF</FingerprintSHA1>
+    </CertificateDomain>
+    <CertificateDomain name="tizen-partner-manufacturer">
+        <FingerprintSHA1>74:2C:31:92:E6:07:E4:24:EB:45:49:54:2B:E1:BB:C5:3E:61:74:E3</FingerprintSHA1>
+		<FingerprintSHA1>2A:74:E8:CF:9E:0F:C3:D9:80:48:8B:E7:86:F7:83:49:91:11:E1:E0</FingerprintSHA1>
+    </CertificateDomain>
+</CertificateSet>

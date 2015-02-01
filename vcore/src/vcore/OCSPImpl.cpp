@@ -18,7 +18,7 @@
  * @author      Michal Ciepielski(m.ciepielski@samsung.com)
  * @author      Piotr Marcinkiewicz(p.marcinkiew@samsung.com)
  * @version     0.4
- * @file        OCPS.cpp
+ * @file        OCSP.cpp
  * @brief       Routines for certificate validation over OCSP
  */
 
@@ -43,14 +43,15 @@
 
 #include <vcore/Certificate.h>
 #include <vcore/SoupMessageSendSync.h>
+#include <vcore/ValidatorFactories.h>
 
 extern "C" {
 // This function is needed to fix "Invalid conversion from void*
 // to unsigned char*" C++ compiler error during calling
 // i2d_OCSP_REQUEST_bio macro
-    extern bool convertToBuffer(OCSP_REQUEST* req,
-                                char** buf,
-                                int* size);
+extern bool convertToBuffer(OCSP_REQUEST* req,
+		char** buf,
+		int* size);
 }
 
 namespace {
@@ -158,7 +159,7 @@ SoupWrapper::SoupMessageSendBase::RequestStatus OCSPImpl::sendOcspRequest(
 ValidationCore::VerificationStatusSet OCSPImpl::validateCertificateList(
         const CertificateList &certs)
 {
-    VerificationStatusSet statusSet;
+	VerificationStatusSet statusSet;
 
     if (certs.size() < 2) {
         // no certificates to verify, just return a error
@@ -169,7 +170,17 @@ ValidationCore::VerificationStatusSet OCSPImpl::validateCertificateList(
         return statusSet;
     }
 
-    CertificateList::const_iterator iter = certs.begin();
+	CertificatePtr root = certs.back();
+	CertStoreId::Set storedSetId = createCertificateIdentifier().find(root);
+	char* ocspUrl = storedSetId.getOcspUrl();
+	
+	if (ocspUrl != NULL)
+	{
+		setUseDefaultResponder(true);
+		setDefaultResponder(ocspUrl);
+	}
+
+	CertificateList::const_iterator iter = certs.begin();
     CertificateList::const_iterator parent = iter;
 
     time_t minValidity = 0;
@@ -187,22 +198,16 @@ ValidationCore::VerificationStatusSet OCSPImpl::validateCertificateList(
     }
     m_responseValidity = minValidity;
 
-    return statusSet;
+	return statusSet;
 }
 
 VerificationStatus OCSPImpl::checkEndEntity(
-        const CertificateCollection &chain)
+		const CertificateCollection &chain)
 {
-    const char *defResponderURI = getenv(OCSPImpl::DEFAULT_RESPONDER_URI_ENV);
+	// this is temporary fix. it must be rewriten
+	VerificationStatusSet verSet;
 
-    VerificationStatusSet verSet;
-    if (defResponderURI) {
-        setUseDefaultResponder(true);
-        setDefaultResponder(defResponderURI);
-    }
-
-    // this is temporary fix. it must be rewriten
-    CertificateList clst;
+	CertificateList clst;
     if (chain.isChain() && chain.size() >= 2) {
         CertificateList::const_iterator icert = chain.begin();
         clst.push_back(*icert);
@@ -211,7 +216,7 @@ VerificationStatus OCSPImpl::checkEndEntity(
     }
     verSet += validateCertificateList(clst);
 
-    return verSet.convertToStatus();
+	return verSet.convertToStatus();
 }
 
 VerificationStatus OCSPImpl::validateCertificate(CertificatePtr argCert,

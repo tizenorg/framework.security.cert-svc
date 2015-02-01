@@ -1,0 +1,52 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 64 (0x40)
+        Signature Algorithm: sha1WithRSAEncryption
+        Issuer: C=KR, ST=KyungGi-Do, O=Samsung Elec., CN=Cert Chain No AIA 9
+        Validity
+            Not Before: Mar 24 07:21:53 2009 GMT
+            Not After : Mar 24 07:21:53 2010 GMT
+        Subject: C=KR, ST=KyungGi-Do, O=Samsung Elec., CN=Cert Chain No AIA 10
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (1024 bit)
+                Modulus (1024 bit):
+                    00:df:07:2f:ee:54:76:49:52:9f:16:7a:0a:39:2f:
+                    44:6d:17:67:ca:6a:0c:d7:42:c2:45:60:f9:b7:a2:
+                    e2:ea:2f:53:14:69:02:57:06:7e:44:b6:c7:6b:9f:
+                    41:b8:1c:2a:17:6b:38:a5:89:c0:ec:e2:4c:c0:59:
+                    97:6c:8d:17:cf:e5:86:3d:3b:b1:69:90:80:fe:84:
+                    7b:37:4e:b9:1d:5e:98:fc:46:38:c7:f1:26:24:7d:
+                    7a:fc:fa:d7:51:59:d1:ba:5f:07:85:9e:43:df:fd:
+                    6e:5f:35:c8:a4:fe:24:a2:5e:8a:bb:01:b5:5d:c5:
+                    cb:0e:40:f5:e9:4c:0b:00:43
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            Authority Information Access: 
+                OCSP - URI:http://127.0.0.1:89/0002
+
+    Signature Algorithm: sha1WithRSAEncryption
+        6f:3d:1c:f3:6a:7d:23:49:43:c3:dd:41:43:81:42:f4:60:bf:
+        87:d4:5f:83:96:1c:6a:c3:06:28:e5:76:fb:5c:17:fc:60:1c:
+        04:07:03:99:92:d4:01:ac:97:81:0c:2a:7c:67:18:88:60:88:
+        dc:a9:35:c1:89:75:d8:0b:0a:c3:ff:43:4a:5a:93:3a:d3:67:
+        b2:ce:8d:8a:8c:19:b5:23:b5:ed:b9:df:26:52:70:09:41:4e:
+        68:1a:54:08:74:c8:ff:bf:03:70:f1:9b:ef:65:2e:e2:23:74:
+        12:77:c4:25:de:fe:58:a9:a9:fa:d2:fb:4b:40:70:24:31:2b:
+        bc:64
+-----BEGIN CERTIFICATE-----
+MIICXzCCAcigAwIBAgIBQDANBgkqhkiG9w0BAQUFADBYMQswCQYDVQQGEwJLUjET
+MBEGA1UECBMKS3l1bmdHaS1EbzEWMBQGA1UEChMNU2Ftc3VuZyBFbGVjLjEcMBoG
+A1UEAxMTQ2VydCBDaGFpbiBObyBBSUEgOTAeFw0wOTAzMjQwNzIxNTNaFw0xMDAz
+MjQwNzIxNTNaMFkxCzAJBgNVBAYTAktSMRMwEQYDVQQIEwpLeXVuZ0dpLURvMRYw
+FAYDVQQKEw1TYW1zdW5nIEVsZWMuMR0wGwYDVQQDExRDZXJ0IENoYWluIE5vIEFJ
+QSAxMDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA3wcv7lR2SVKfFnoKOS9E
+bRdnymoM10LCRWD5t6Li6i9TFGkCVwZ+RLbHa59BuBwqF2s4pYnA7OJMwFmXbI0X
+z+WGPTuxaZCA/oR7N065HV6Y/EY4x/EmJH16/PrXUVnRul8HhZ5D3/1uXzXIpP4k
+ol6KuwG1XcXLDkD16UwLAEMCAwEAAaM4MDYwNAYIKwYBBQUHAQEEKDAmMCQGCCsG
+AQUFBzABhhhodHRwOi8vMTI3LjAuMC4xOjg5LzAwMDIwDQYJKoZIhvcNAQEFBQAD
+gYEAbz0c82p9I0lDw91BQ4FC9GC/h9Rfg5YcasMGKOV2+1wX/GAcBAcDmZLUAayX
+gQwqfGcYiGCI3Kk1wYl12AsKw/9DSlqTOtNnss6NiowZtSO17bnfJlJwCUFOaBpU
+CHTI/78DcPGb72Uu4iN0EnfEJd7+WKmp+tL7S0BwJDErvGQ=
+-----END CERTIFICATE-----

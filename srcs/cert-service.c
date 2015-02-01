@@ -36,15 +36,14 @@
 #define CERT_SVC_API	__attribute__((visibility("default")))
 #endif
 
-#define CRT_FILE_PATH	"/opt/usr/share/certs/ca-certificate.crt"
+#define CRT_FILE_PATH	"/opt/share/cert-svc/ca-certificate.crt"
 
 CERT_SVC_API
 int cert_svc_add_certificate_to_store(const char* filePath, const char* location)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 	char _filePath[CERT_SVC_MAX_FILE_NAME_SIZE];
-
-	memset(_filePath, 0x00, CERT_SVC_MAX_FILE_NAME_SIZE);
+	int pathSize = 0;
 
 	if(filePath == NULL) {
 		SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.\n", __func__);
@@ -52,13 +51,42 @@ int cert_svc_add_certificate_to_store(const char* filePath, const char* location
 		goto err;
 	}
 
-	if(filePath[0] != '/') {	// not absolute path, this is regarded relative file path
-		getcwd(_filePath, CERT_SVC_MAX_FILE_NAME_SIZE);
-		strncat(_filePath, "/", 1);
-		strncat(_filePath, filePath, strlen(filePath));
+	pathSize = strlen(filePath);
+
+	if (pathSize <= 0 || pathSize >= CERT_SVC_MAX_FILE_NAME_SIZE) {
+		SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.\n", __func__);
+		ret = CERT_SVC_ERR_INVALID_PARAMETER;
+		goto err;
 	}
-	else
-		strncpy(_filePath, filePath, strlen(filePath));
+
+	memset(_filePath, 0x0, sizeof(_filePath));
+
+	if(filePath[0] != '/') {	// not absolute path, this is regarded relative file path
+		if (getcwd(_filePath, sizeof(_filePath))) {
+			int cwdSize = 0;
+			//just in case
+			_filePath[sizeof(_filePath) - 1] = '\0';
+
+			cwdSize = strlen(_filePath);
+
+			if (cwdSize <=0 || (cwdSize + pathSize + 1) >= CERT_SVC_MAX_FILE_NAME_SIZE) {
+				SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.\n", __func__);
+				ret = CERT_SVC_ERR_INVALID_OPERATION;
+				goto err;
+			}
+
+			strncat(_filePath, "/", 1);
+			strncat(_filePath, filePath, pathSize);
+
+		} else {
+			SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.\n", __func__);
+			ret = CERT_SVC_ERR_INVALID_OPERATION;
+			goto err;
+		}
+	}
+	else {
+		strncpy(_filePath, filePath, pathSize);
+	}
 
 	ret = _add_certificate_to_store(_filePath, location);
 
@@ -94,11 +122,10 @@ err:
 	return ret;
 }
 
-CERT_SVC_API
-int cert_svc_verify_certificate(CERT_CONTEXT* ctx, int* validity)
+int _cert_svc_verify_certificate_with_caflag(CERT_CONTEXT* ctx, int checkCAFlag, int* validity)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
-
+		
 	if((ctx == NULL) || (ctx->certBuf == NULL)) {
 		SLOGE("[ERR][%s] Check your parameter. Cannot find certificate.\n", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
@@ -125,7 +152,7 @@ int cert_svc_verify_certificate(CERT_CONTEXT* ctx, int* validity)
 	ctx->fileNames->next = NULL;
 
 	/* call verify function */
-	if((ret = _verify_certificate(ctx->certBuf, &(ctx->certLink), ctx->fileNames, validity)) != CERT_SVC_ERR_NO_ERROR) {
+	if((ret = _verify_certificate_with_caflag(ctx->certBuf, &(ctx->certLink), checkCAFlag, ctx->fileNames, validity)) != CERT_SVC_ERR_NO_ERROR) {
 		SLOGE("[ERR][%s] Fail to verify certificate.\n", __func__);
 		goto err;
 	}
@@ -134,6 +161,20 @@ int cert_svc_verify_certificate(CERT_CONTEXT* ctx, int* validity)
 
 err:
 	return ret;
+}
+
+CERT_SVC_API
+int cert_svc_verify_certificate(CERT_CONTEXT* ctx, int* validity)
+{
+	int ca_cflag_check_false = 0;
+	return _cert_svc_verify_certificate_with_caflag(ctx, ca_cflag_check_false, validity);
+}
+
+CERT_SVC_API
+int cert_svc_verify_certificate_with_caflag(CERT_CONTEXT* ctx, int* validity)
+{
+	int ca_cflag_check_true = 1;
+	return _cert_svc_verify_certificate_with_caflag(ctx, ca_cflag_check_true, validity);
 }
 
 /*
@@ -209,8 +250,8 @@ int cert_svc_search_certificate(CERT_CONTEXT* ctx, search_field fldName, char* f
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 
-	/* check parameter */
-	if((ctx == NULL) || (fldName < SEARCH_FIELD_START ) || (fldName > SEARCH_FIELD_END) || (fldData == NULL)) {
+	/* check parameter, fldName is unsigned int. It will never be negative */
+	if((ctx == NULL) || (fldName > SEARCH_FIELD_END) || (fldData == NULL)) {
 		SLOGE("[ERR][%s] Invalid parameter. Check your parameter\n", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
@@ -225,7 +266,8 @@ int cert_svc_search_certificate(CERT_CONTEXT* ctx, search_field fldName, char* f
 
 	/* search specific field */
 	if((ret = _search_certificate(&(ctx->fileNames), fldName, fldData)) != CERT_SVC_ERR_NO_ERROR) {
-		SLOGE("[ERR][%s] Fail to search sertificate.\n", __func__);
+		SLOGE("[ERR][%s] Fail to search certificate.\n", __func__);
+		SLOGE("[ERR][%s] Fail to search certificate.\n", ctx->fileNames);
 		goto err;
 	}
 	SLOGD("[%s] Success to search certificate(s).\n", __func__);
@@ -306,14 +348,14 @@ int cert_svc_load_buf_to_context(CERT_CONTEXT* ctx, unsigned char* buf)
 		goto err;
 	}
 	if(!(ctx->certBuf = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
-		SLOGE("[ERR][%s] Fail to allovate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	memset(ctx->certBuf, 0x00, sizeof(cert_svc_mem_buff));
 
 	/* memory allocation for decoded string */
-	size = strlen(buf);
+	size = strlen((char*)buf);
 	decodedSize = ((size / 4) * 3) + 1;
 
 	if(!(decodedStr = (char*)malloc(sizeof(char) * decodedSize))) {
@@ -323,7 +365,7 @@ int cert_svc_load_buf_to_context(CERT_CONTEXT* ctx, unsigned char* buf)
 	}
 
 	/* decode */
-	if((ret = cert_svc_util_base64_decode(buf, size, decodedStr, &decodedSize)) != CERT_SVC_ERR_NO_ERROR) {
+	if((ret = cert_svc_util_base64_decode((char*)buf, size, decodedStr, &decodedSize)) != CERT_SVC_ERR_NO_ERROR) {
 		SLOGE("[ERR][%s] Fail to decode string, ret: [%d]\n", __func__, ret);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		free(decodedStr);
@@ -331,7 +373,7 @@ int cert_svc_load_buf_to_context(CERT_CONTEXT* ctx, unsigned char* buf)
 	}
 
 	/* load content to CERT_CONTEXT */
-	ctx->certBuf->data = decodedStr;
+	ctx->certBuf->data = (unsigned char*)decodedStr;
 	ctx->certBuf->size = decodedSize;
 
 	SLOGD("[%s] Success to load certificate buffer content to context.\n", __func__);
@@ -359,7 +401,7 @@ int cert_svc_load_file_to_context(CERT_CONTEXT* ctx, const char* filePath)
 		goto err;
 	}
 	if(!(ctx->certBuf = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
-		SLOGE("[ERR][%s] Fail to allovate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -396,19 +438,19 @@ int cert_svc_push_buf_into_context(CERT_CONTEXT *ctx, unsigned char* buf)
 
 	/* memory alloction new item */
 	if(!(new = (cert_svc_linked_list*)malloc(sizeof(cert_svc_linked_list)))) {
-		SLOGE("[ERR][%s] Fail to allcate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	if(!(new->certificate = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
-		SLOGE("[ERR][%s] Fail to allcate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		free(new);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 
 	/* memory allocation for decoded string */
-	size = strlen(buf);
+	size = strlen((char*)buf);
 	decodedSize = ((size / 4) * 3) + 1;
 
 	if(!(decodedStr = (char*)malloc(sizeof(char) * decodedSize))) {
@@ -419,7 +461,7 @@ int cert_svc_push_buf_into_context(CERT_CONTEXT *ctx, unsigned char* buf)
 	}
 
 	/* decode */
-	if((ret = cert_svc_util_base64_decode(buf, size, decodedStr, &decodedSize)) != CERT_SVC_ERR_NO_ERROR) {
+	if((ret = cert_svc_util_base64_decode((char*)buf, size, decodedStr, &decodedSize)) != CERT_SVC_ERR_NO_ERROR) {
 		SLOGE("[ERR][%s] Fail to decode string, ret: [%d]\n", __func__, ret);
 		release_cert_list(new);
 		free(decodedStr);
@@ -428,7 +470,7 @@ int cert_svc_push_buf_into_context(CERT_CONTEXT *ctx, unsigned char* buf)
 	}
 
 	/* load content to CERT_CONTEXT */
-	new->certificate->data = decodedStr;
+	new->certificate->data = (unsigned char*)decodedStr;
 	new->certificate->size = decodedSize;
 	new->next = NULL;
 
@@ -464,13 +506,13 @@ int cert_svc_push_file_into_context(CERT_CONTEXT *ctx, const char* filePath)
 
 	/* memory alloction new item */
 	if(!(new = (cert_svc_linked_list*)malloc(sizeof(cert_svc_linked_list)))) {
-		SLOGE("[ERR][%s] Fail to allcate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	memset(new, 0x00, sizeof(cert_svc_linked_list));
 	if(!(new->certificate = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
-		SLOGE("[ERR][%s] Fail to allcate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		free(new);
 		goto err;
@@ -522,14 +564,14 @@ int cert_svc_load_PFX_file_to_context(CERT_CONTEXT* ctx, unsigned char** private
 		goto err;
 	}
 	if(!(ctx->certBuf = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
-		SLOGE("[ERR][%s] Fail to allovate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	memset(ctx->certBuf, 0x00, sizeof(cert_svc_mem_buff));
 
 	/* get content to ctx->certBuf */
-	if((ret = cert_svc_util_load_PFX_file_to_buffer(filePath, ctx->certBuf, ctx->certLink, privateKey, priKeyLen, passPhrase)) != CERT_SVC_ERR_NO_ERROR) {
+	if((ret = cert_svc_util_load_PFX_file_to_buffer(filePath, ctx->certBuf, &ctx->certLink, privateKey, priKeyLen, passPhrase)) != CERT_SVC_ERR_NO_ERROR) {
 		SECURE_SLOGE("[ERR][%s] Fail to load file, filepath: [%s], ret: [%d]\n", __func__, filePath, ret);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
@@ -541,28 +583,34 @@ err:
 	return ret;
 }
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 CERT_SVC_API
 int cert_svc_check_ocsp_status(CERT_CONTEXT* ctx, const char* uri)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
+	cert_svc_linked_list** certList=NULL;
 
+		/* check revocation status */
 	/* check parameter */
 	if((ctx == NULL) || (ctx->certBuf == NULL)) {
 		SLOGE("[ERR][%s] certBuf must have value.\n", __func__);
-		ret = CERT_SVC_ERR_INVALID_OPERATION;
+		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
 	}
 
 	/* check revocation status */
-	if((ret = _check_ocsp_status(ctx->certBuf, uri)) != CERT_SVC_ERR_NO_ERROR) {
+	if(ctx->certLink != NULL) {
+		certList = &(ctx->certLink);
+	}
+	if((ret = _check_ocsp_status(ctx->certBuf, certList, uri)) != CERT_SVC_ERR_NO_ERROR) {
 		SLOGE("[ERR][%s] Fail to check revocation status.\n", __func__);
-		ret = CERT_SVC_ERR_INVALID_CERTIFICATE;
 		goto err;
 	}
 
 err:
 	return ret;
 }
+#endif
 
 CERT_SVC_API
 char* cert_svc_get_certificate_crt_file_path(void)
@@ -570,3 +618,60 @@ char* cert_svc_get_certificate_crt_file_path(void)
 	return CRT_FILE_PATH;
 }
 
+CERT_SVC_API
+int cert_svc_get_visibility(CERT_CONTEXT *ctx, int* visibility)
+{
+	CERT_CONTEXT* context = NULL;
+	int ret = CERT_SVC_ERR_NO_ERROR;
+	const char* root_cert_path = NULL;
+
+	if(!ctx || !visibility)
+	{
+		SLOGE("Invalid prameters");
+		return CERT_SVC_ERR_INVALID_PARAMETER;
+	}
+
+	if(!ctx->fileNames || !ctx->fileNames->filename)
+	{
+		SLOGE("Can not find root certificate path");
+		return CERT_SVC_ERR_INVALID_PARAMETER;
+	}
+
+	context = cert_svc_cert_context_init();
+	if(!context)
+	{
+		SLOGE("Out of memory");
+		return CERT_SVC_ERR_MEMORY_ALLOCATION;
+	}
+
+	ret	= cert_svc_load_file_to_context(context, ctx->fileNames->filename);
+	if(ret != CERT_SVC_ERR_NO_ERROR)
+	{
+		SLOGE("failed to load root certficiate");
+		cert_svc_cert_context_final(context);
+		return CERT_SVC_ERR_INVALID_CERTIFICATE;
+	}
+
+	ret = get_visibility(context, visibility);
+
+	cert_svc_cert_context_final(context);
+
+	return ret;
+}
+
+CERT_SVC_API
+int cert_svc_get_visibility_by_root_certificate(const char* base64_encoded_data, int data_len, int* visibility)
+{
+	if(!base64_encoded_data|| !data_len)
+	{
+		return CERT_SVC_ERR_INVALID_PARAMETER;
+	}
+
+	int ret = get_visibility_by_certificate(base64_encoded_data, data_len, visibility);
+	if(ret != CERT_SVC_ERR_NO_ERROR)
+	{
+		SLOGE("Failed to get_visibility :%d", ret);
+		return ret;
+	}
+	return CERT_SVC_ERR_NO_ERROR;
+}

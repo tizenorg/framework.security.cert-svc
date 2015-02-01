@@ -39,25 +39,67 @@ int get_file_full_path(char* originalName, const char* location, char* outBuf)
 	char buf[CERT_SVC_MAX_FILE_NAME_SIZE];
 	char* token = NULL;
 	char seps[] = "_";
+	int nameSize = 0 ;
 
-	memset(buf, 0x00, CERT_SVC_MAX_FILE_NAME_SIZE);
-	memset(pathLocation, 0x00, CERT_SVC_MAX_FILE_NAME_SIZE);
+	if (originalName  == NULL) {
+		SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.\n", __func__);
+		ret = CERT_SVC_ERR_INVALID_PARAMETER;
+		goto err;
+	}
 
-	if(location == NULL) 	// use default path
-		strncpy(buf, CERT_SVC_STORE_PATH_DEFAULT, strlen(CERT_SVC_STORE_PATH_DEFAULT)+1);
+	nameSize = strlen(originalName);
+
+	if (nameSize <= 0 || nameSize >= CERT_SVC_MAX_FILE_NAME_SIZE) {
+		SLOGE("[ERR][%s] Check your parameter. File path is too long.\n", __func__);
+		ret = CERT_SVC_ERR_INVALID_PARAMETER;
+		goto err;
+	}
+
+	memset(buf, 0x00, sizeof(buf));
+	memset(pathLocation, 0x00, sizeof(pathLocation));
+
+	if(location == NULL) { 	// use default path
+		strncpy(buf, CERT_SVC_STORE_PATH_DEFAULT, sizeof(buf) - 1);
+	}
 	else {
-		strncpy(pathLocation, location, strlen(location));
-		strncpy(buf, CERT_SVC_STORE_PATH, strlen(CERT_SVC_STORE_PATH)+1);
+		int locSize = strlen(location) + strlen(CERT_SVC_STORE_PATH);
+
+		if (locSize <= 0 || locSize >= CERT_SVC_MAX_FILE_NAME_SIZE) {
+			SLOGE("[ERR][%s] Check your parameter. Location is too long.\n", __func__);
+			ret = CERT_SVC_ERR_INVALID_PARAMETER;
+			goto err;
+		}
+
+		strncpy(pathLocation, location, sizeof(pathLocation) - 1);
+
+		strncpy(buf, CERT_SVC_STORE_PATH, sizeof(buf) - 1);
+
 		token = strtok(pathLocation, seps);
+
 		while(token) {
-			strncat(buf, token, strlen(token));
-			strncat(buf, "/", 1);
-			token = strtok(NULL, seps);
+			if((strlen(buf) + strlen(token)) < (CERT_SVC_MAX_FILE_NAME_SIZE - 1)) {
+					strncat(buf, token, strlen(token));
+					strncat(buf, "/", 1);
+					token = strtok(NULL, seps);
+			}
+			else {
+				ret = CERT_SVC_ERR_INVALID_PARAMETER;
+				goto err;
+			}
 		}
 	}
-	strncat(buf, originalName, strlen(originalName));
-	strncpy(outBuf, buf, CERT_SVC_MAX_FILE_NAME_SIZE);
 
+	if ((nameSize + strlen(buf)) >= CERT_SVC_MAX_FILE_NAME_SIZE) {
+		SLOGE("[ERR][%s] Check your parameter. File path is too long.\n", __func__);
+		ret = CERT_SVC_ERR_INVALID_PARAMETER;
+		goto err;
+	}
+
+	strncat(buf, originalName, nameSize);
+	strncpy(outBuf, buf, CERT_SVC_MAX_FILE_NAME_SIZE - 1);
+	outBuf[ CERT_SVC_MAX_FILE_NAME_SIZE - 1] = '\0';
+
+err:
 	return ret;
 }
 
@@ -72,8 +114,6 @@ int _add_certificate_to_store(const char* filePath, const char* location)
 	FILE* fp_out = NULL;
 	unsigned long int inFileLen = 0;
 	char* fileContent = NULL;
-	/* check certificate or not */
-	X509* x = NULL;
 
 	/* initialize variable */
 	fileFullPath = (char*)malloc(sizeof(char) * CERT_SVC_MAX_FILE_NAME_SIZE);

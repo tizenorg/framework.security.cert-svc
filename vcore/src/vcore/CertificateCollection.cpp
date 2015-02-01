@@ -37,7 +37,7 @@ inline std::string toBinaryString(int data)
 {
     char buffer[sizeof(int)];
     memcpy(buffer, &data, sizeof(int));
-    return std::string(buffer, buffer + sizeof(int));
+	return std::string(buffer, sizeof(int));
 }
 
 } // namespace

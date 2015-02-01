@@ -23,13 +23,16 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <openssl/x509.h>
 #include <openssl/pkcs12.h>
+#include <openssl/pem.h>
 
 #include "cert-service.h"
 #include "cert-service-util.h"
 #include "cert-service-debug.h"
 #include "cert-service-process.h"
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #ifndef CERT_SVC_API
 #define CERT_SVC_API	__attribute__((visibility("default")))
@@ -76,27 +79,27 @@ int get_content_into_buf_PEM(unsigned char* content, cert_svc_mem_buff* cert)
 	int decodedSize = 0;
 	int i = 0, j = 0;
 
-        if(!content) {
-            ret = CERT_SVC_ERR_INVALID_PARAMETER;
-            goto err;
-        }
-        startPEM = strstr((const char *)content, CERT_BODY_PREFIX);
-        startPEM = (startPEM) ? startPEM + strlen(CERT_BODY_PREFIX) : NULL;
-        endPEM = strstr((const char *)content, CERT_BODY_SUFIX);
-        if(!startPEM || !endPEM) {
-            startPEM = strstr((const char *)content, ICERT_BODY_PREFIX);
-            startPEM = (startPEM) ? startPEM + strlen(ICERT_BODY_PREFIX) : NULL;
-            endPEM = strstr((const char *)content, ICERT_BODY_SUFIX);
-        }
-        if(!startPEM || !endPEM) {
-            ret = CERT_SVC_ERR_UNKNOWN_ERROR;
-            goto err;
-        }
-        else {
-            ++startPEM;
-            --endPEM;
-            size = (long)endPEM - (long)startPEM;
-        }
+	if(!content) {
+		ret = CERT_SVC_ERR_INVALID_PARAMETER;
+		goto err;
+	}
+	startPEM = strstr((const char *)content, CERT_BODY_PREFIX);
+	startPEM = (startPEM) ? startPEM + strlen(CERT_BODY_PREFIX) : NULL;
+	endPEM = strstr((const char *)content, CERT_BODY_SUFIX);
+	if(!startPEM || !endPEM) {
+		startPEM = strstr((const char *)content, ICERT_BODY_PREFIX);
+		startPEM = (startPEM) ? startPEM + strlen(ICERT_BODY_PREFIX) : NULL;
+		endPEM = strstr((const char *)content, ICERT_BODY_SUFIX);
+	}
+	if(!startPEM || !endPEM) {
+		ret = CERT_SVC_ERR_UNKNOWN_ERROR;
+		goto err;
+	}
+	else {
+		++startPEM;
+		--endPEM;
+		size = (long)endPEM - (long)startPEM;
+	}
 
 	if(!(original = (char*)malloc(sizeof(char) * (size + 1)))) {
 		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
@@ -225,8 +228,6 @@ int cert_svc_util_load_file_to_buffer(const char* filePath, cert_svc_mem_buff* c
 	FILE* fp_in = NULL;
 	unsigned char* content = NULL;
 	unsigned long int fileSize = 0;
-	// get extension, type of certificate
-	const char* extension = NULL;
 
 	/* get file size */
 	if((ret = cert_svc_util_get_file_size(filePath, &fileSize)) != CERT_SVC_ERR_NO_ERROR) {
@@ -290,19 +291,19 @@ int push_cert_into_linked_list(cert_svc_linked_list** certLink, X509* popedCert)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 	cert_svc_linked_list* cur = NULL;
-	cert_svc_linked_list* new = NULL;
+	cert_svc_linked_list* newNode = NULL;
 	unsigned char* pCert = NULL;
 	unsigned char* bufCert = NULL;
 	int certLen = 0;
 
-	if(!(new = (cert_svc_linked_list*)malloc(sizeof(cert_svc_linked_list)))) {
+	if(!(newNode = (cert_svc_linked_list*)malloc(sizeof(cert_svc_linked_list)))) {
 		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
-	if(!(new->certificate = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
+	if(!(newNode->certificate = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
 		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
-		free(new);
+		free(newNode);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -310,38 +311,38 @@ int push_cert_into_linked_list(cert_svc_linked_list** certLink, X509* popedCert)
 	/* get certificate data and store in certLink */
 	if((certLen = i2d_X509(popedCert, NULL)) < 0) {
 		SLOGE("[ERR][%s] Fail to convert certificate.\n", __func__);
-		release_cert_list(new);
+		release_cert_list(newNode);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
 	}
 	if(!(bufCert = (unsigned char*)malloc(sizeof(unsigned char) * certLen))) {
 		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
-		release_cert_list(new);
+		release_cert_list(newNode);
 		goto err;
 	}
 	pCert = bufCert;
 	i2d_X509(popedCert, &pCert);
 
-	new->certificate->data = bufCert;
-	new->certificate->size = certLen;
+	newNode->certificate->data = bufCert;
+	newNode->certificate->size = certLen;
 
 	if(NULL == *certLink) {	// first item
-		*certLink = new;
+		*certLink = newNode;
 	}
 	else {
 	    /* attach to linked list */
 	    cur = *certLink;
 		while(cur->next)
 			cur = cur->next;
-		cur->next = new;
+		cur->next = newNode;
 	}
 
 err:
 	return ret;
 }
 
-int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buff* certBuf, cert_svc_linked_list* certLink, unsigned char** privateKey, int* priKeyLen, char* passPhrase)
+int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buff* certBuf, cert_svc_linked_list** certLink, unsigned char** privateKey, int* priKeyLen, char* passPhrase)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 	// related pkcs12 and x509
@@ -537,4 +538,202 @@ int cert_svc_util_base64_decode(char* in, int inLen, char* out, int* outLen)
 
 err:
 	return ret;
+}
+
+// fingerprint format - AA:BB:CC:DD:EE...
+// cert - der(binary) format
+int get_certificate_fingerprint(const char *cert, int cert_size, unsigned char** fingerprint)
+{
+	X509* x509Cert = NULL;
+	unsigned char x509_fingerprint[EVP_MAX_MD_SIZE] = {0,};
+	char* uniformedFingerprint[EVP_MAX_MD_SIZE *3] = {0,};
+	int fp_len = 0;
+	int i = 0;
+	char buff[8] = {0,};
+	int x509_length = 0;
+
+	if(d2i_X509(&x509Cert, &cert, cert_size) == NULL)
+	{
+		SLOGE("d2i_x509 failed!");
+		*fingerprint = NULL;
+		return CERT_SVC_ERR_INVALID_CERTIFICATE;
+	}
+
+	if(!X509_digest(x509Cert, EVP_sha1(), x509_fingerprint, &x509_length))
+	{
+		SLOGE("X509_digest failed");
+		X509_free(x509Cert);
+		*fingerprint = NULL;
+		return CERT_SVC_ERR_INVALID_CERTIFICATE;
+	}
+
+	for(i=0; i < x509_length; i++)
+	{
+		snprintf(buff, sizeof(buff), "%02X:", x509_fingerprint[i]);
+		strncat(uniformedFingerprint, buff, 3);
+	}
+	uniformedFingerprint[x509_length*3-1] = 0; // remove last :
+	fp_len = strlen(uniformedFingerprint);
+
+	*fingerprint = (char*)calloc(sizeof(char),fp_len + 1);
+	if(*fingerprint == NULL)
+	{
+		SLOGE("Failed to allocate memory");
+		X509_free(x509Cert);
+		*fingerprint = NULL;
+		return CERT_SVC_ERR_MEMORY_ALLOCATION;
+	}
+	
+	memcpy(*fingerprint, uniformedFingerprint, fp_len-1);
+
+	LOGD("fingerprint : %s", *fingerprint);
+
+	X509_free(x509Cert);
+
+	return CERT_SVC_ERR_NO_ERROR;
+}
+
+int get_visibility_by_fingerprint(const char* fingerprint, int* visibility)
+{
+	LOGD("fingerprint : %s", fingerprint);
+	int ret = 0;
+	xmlChar *xmlPathCertificateSet  = (xmlChar*) "CertificateSet";
+	xmlChar *xmlPathCertificateDomain = (xmlChar*) "CertificateDomain";// name=\"tizen-platform\"";
+	xmlChar *xmlPathDomainPlatform = (xmlChar*) "tizen-platform";
+	xmlChar *xmlPathDomainPublic = (xmlChar*) "tizen-public";
+	xmlChar *xmlPathDomainPartner = (xmlChar*) "tizen-partner";
+	xmlChar *xmlPathDomainDeveloper = (xmlChar*) "tizen-developer";
+	xmlChar *xmlPathDomainTest = (xmlChar*) "tizen-test";
+	xmlChar *xmlPathDomainVerify = (xmlChar*) "tizen-verify";
+	xmlChar *xmlPathFingerPrintSHA1 = (xmlChar*) "FingerprintSHA1";
+
+	/*   load file */
+	xmlDocPtr doc = xmlParseFile("/usr/share/wrt-engine/fingerprint_list.xml");
+	if ((doc == NULL) || (xmlDocGetRootElement(doc) == NULL))
+	{
+		LOGE("Failed to prase fingerprint_list.xml");
+		return CERT_SVC_ERR_FILE_IO;
+	}
+
+	xmlNodePtr curPtr = xmlFirstElementChild(xmlDocGetRootElement(doc));
+	if(curPtr == NULL)
+	{
+		LOGE("Can not find root");
+		xmlFreeDoc(doc);
+		return CERT_SVC_ERR_FILE_IO;
+	}
+
+	while(curPtr != NULL)
+	{
+		xmlAttr* attr = curPtr->properties;
+		if(!attr->children || !attr->children->content)
+		{
+			LOGE("Failed to get fingerprints from list");
+			ret = CERT_SVC_ERR_NO_ROOT_CERT;
+			goto out;
+		}
+
+		xmlChar* strLevel = attr->children->content;
+		xmlNodePtr FpPtr = xmlFirstElementChild(curPtr);
+		if(FpPtr == NULL)
+		{
+			LOGE("Could not find fingerprint");
+			ret = CERT_SVC_ERR_NO_ROOT_CERT;
+			goto out;
+		}
+
+		while(FpPtr)
+		{
+			xmlChar *content = xmlNodeGetContent(FpPtr);
+			if(xmlStrcmp(content, (xmlChar*)fingerprint) == 0)
+			{
+				LOGD("fingerprint : %s are %s", content, strLevel);
+				if(!xmlStrcmp(strLevel, xmlPathDomainPlatform)){
+					*visibility =  CERT_SVC_VISIBILITY_PLATFORM;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainPublic)){
+					*visibility = CERT_SVC_VISIBILITY_PUBLIC;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainPartner)){
+					*visibility = CERT_SVC_VISIBILITY_PARTNER;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainDeveloper)){
+					*visibility =  CERT_SVC_VISIBILITY_DEVELOPER;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainTest)){
+					*visibility =  CERT_SVC_VISIBILITY_TEST;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainVerify)){
+					*visibility =  CERT_SVC_VISIBILITY_VERIFY;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+			}
+			FpPtr = xmlNextElementSibling(FpPtr);
+		}
+		curPtr = xmlNextElementSibling(curPtr);
+	}
+
+	xmlFreeDoc(doc);
+	return CERT_SVC_ERR_NO_ROOT_CERT;
+
+out:
+	xmlFreeDoc(doc);
+	return ret;
+}
+
+
+// expect input cert data is base64 encoded format
+int get_visibility_by_certificate(const char* cert_data, int data_len, int* visibility)
+{
+	if(!cert_data || !data_len)
+	{
+		return CERT_SVC_ERR_INVALID_PARAMETER;
+	}
+
+	int decodedSize = ((data_len / 4) * 3) + 1;
+	char* decoded = NULL;
+	char* fingerprint = NULL;
+	int ret = CERT_SVC_ERR_NO_ERROR;
+
+	if(!(decoded = (char*)malloc(sizeof(char) * decodedSize))) {
+		SLOGE("Fail to allocate memory.");
+		return CERT_SVC_ERR_MEMORY_ALLOCATION;
+	}
+	memset(decoded, 0x00, decodedSize);
+
+	if((ret = cert_svc_util_base64_decode(cert_data, data_len, decoded, &decodedSize)) != CERT_SVC_ERR_NO_ERROR)
+	{
+		SLOGE("Failed to decode data %d", ret);
+		free(decoded);
+		return ret;
+	}
+
+	ret = get_certificate_fingerprint(decoded, decodedSize, &fingerprint);
+	if(ret != CERT_SVC_ERR_NO_ERROR)
+	{
+		LOGE("Can not get fingerprint! %d", ret);
+		return ret;
+	}
+	
+	ret = get_visibility_by_fingerprint(fingerprint, visibility);
+	if(ret != CERT_SVC_ERR_NO_ERROR)
+	{
+		LOGE("Can not find visibility %d", ret);
+		return ret;
+	}
+
+	free(decoded);
+	free(fingerprint);
+	return CERT_SVC_ERR_NO_ERROR;
 }

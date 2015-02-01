@@ -24,11 +24,15 @@
 
 #include <string>
 #include <VCore.h>
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 #include <database_checksum_vcore.h>
 #include <dpl/db/thread_database_support.h>
+#endif
 
 namespace ValidationCore {
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 DPL::DB::ThreadDatabaseSupport& ThreadInterface(void);
+#endif
 } // namespace ValidationCore
 
 #endif // _VCORE_SRC_VCORE_VCORE_H_

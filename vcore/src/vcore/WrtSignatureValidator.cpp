@@ -22,7 +22,6 @@
 #include <vcore/WrtSignatureValidator.h>
 
 #include <dpl/log/log.h>
-
 #include <vcore/CertificateVerifier.h>
 #include <vcore/Certificate.h>
 #include <vcore/OCSPCertMgrUtil.h>
@@ -41,6 +40,36 @@ const std::string TOKEN_PROFILE_URI =
     "http://www.w3.org/ns/widgets-digsig#profile";
 } // namespace anonymouse
 
+static tm _ASN1_GetTimeT(ASN1_TIME* time)
+{
+    struct tm t;
+    const char* str = (const char*) time->data;
+    size_t i = 0;
+
+    memset(&t, 0, sizeof(t));
+
+    if (time->type == V_ASN1_UTCTIME) /* two digit year */
+    {
+        t.tm_year = (str[i++] - '0') * 10 + (str[++i] - '0');
+        if (t.tm_year < 70)
+            t.tm_year += 100;
+    }
+    else if (time->type == V_ASN1_GENERALIZEDTIME) /* four digit year */
+    {
+        t.tm_year = (str[i++] - '0') * 1000 + (str[++i] - '0') * 100 + (str[++i] - '0') * 10 + (str[++i] - '0');
+        t.tm_year -= 1900;
+    }
+    t.tm_mon = ((str[i++] - '0') * 10 + (str[++i] - '0')) - 1; // -1 since January is 0 not 1.
+    t.tm_mday = (str[i++] - '0') * 10 + (str[++i] - '0');
+    t.tm_hour = (str[i++] - '0') * 10 + (str[++i] - '0');
+    t.tm_min  = (str[i++] - '0') * 10 + (str[++i] - '0');
+    t.tm_sec  = (str[i++] - '0') * 10 + (str[++i] - '0');
+
+    /* Note: we did not adjust the time based on time zone information */
+    return t;
+}
+
+
 namespace ValidationCore {
 
 class WrtSignatureValidator::Impl {
@@ -52,9 +81,11 @@ public:
     explicit Impl(bool ocspEnable,
                   bool crlEnable,
                   bool complianceMode)
-      : m_ocspEnable(ocspEnable)
+      : m_complianceModeEnabled(complianceMode)
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	  ,	m_ocspEnable(ocspEnable)
       , m_crlEnable(crlEnable)
-      , m_complianceModeEnabled(complianceMode)
+    #endif 
     {}
 
     virtual ~Impl(){}
@@ -104,9 +135,12 @@ public:
         return true;
     }
 protected:
+    bool m_complianceModeEnabled;
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     bool m_ocspEnable;
     bool m_crlEnable;
-    bool m_complianceModeEnabled;
+#endif
+
 };
 
 class ImplTizen : public WrtSignatureValidator::Impl
@@ -171,13 +205,14 @@ WrtSignatureValidator::Result ImplTizen::check(
         << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
     LogDebug("Is root certificate from TIZEN_TEST domain:  "
         << storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
+        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
     LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
     LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PARTNER));
     LogDebug("Is root certificate from TIZEN_PLATFORM domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PLATFORM));
-
     LogDebug("Visibility level is public :  "
         << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
     LogDebug("Visibility level is partner :  "
@@ -198,6 +233,7 @@ WrtSignatureValidator::Result ImplTizen::check(
 	else
 	{
 		LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+
 		if (data.getSignatureNumber() == 1)
 		{
 			if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
@@ -206,7 +242,7 @@ WrtSignatureValidator::Result ImplTizen::check(
 			}
 			else
 			{
-				LogWarning("author-signature.xml has got unrecognized Root CA "
+				LogWarning("signature1.xml has got unrecognized Root CA "
 				        "certificate. Signature will be disregarded.");
 				disregard = true;
 			}
@@ -227,7 +263,7 @@ WrtSignatureValidator::Result ImplTizen::check(
     // but still signature must be valid... Aaaaaa it's so stupid...
     if (!(root->isSignedBy(root))) {
         LogWarning("Root CA certificate not found. Chain is incomplete.");
-        context.allowBrokenChain = true;
+        //context.allowBrokenChain = true;
     }
 
     // WAC 2.0 SP-2066 The wrt must not block widget installation
@@ -239,20 +275,84 @@ WrtSignatureValidator::Result ImplTizen::check(
     ASN1_TIME* notAfterTime = data.getEndEntityCertificatePtr()->getNotAfterTime();
     ASN1_TIME* notBeforeTime = data.getEndEntityCertificatePtr()->getNotBeforeTime();
 
-	if (data.isAuthorSignature())
-	{
-		if (X509_cmp_time(notBeforeTime, &nowTime) > 0)
-		{
-			LogDebug("notBeforeTime is greater then current time");
-			return WrtSignatureValidator::SIGNATURE_INVALID;
-		}
+	if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
+    {
+      struct tm *t;
+      struct tm ta, tb, tc;
+      char msg[1024];
 
-		if (X509_cmp_time(notAfterTime, &nowTime) < 0)
-		{
-			LogDebug("notAfterTime is less then current time");
-			return WrtSignatureValidator::SIGNATURE_INVALID;
-		}
-	}
+      t = localtime(&nowTime);
+
+      memset(&tc, 0, sizeof(tc));
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
+      LogDebug("## System's currentTime : " << msg);
+      fprintf(stderr, "## System's currentTime : %s\n", msg);
+
+      tb = _ASN1_GetTimeT(notBeforeTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
+      LogDebug("## certificate's notBeforeTime : " << msg);
+      fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
+
+      ta = _ASN1_GetTimeT(notAfterTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
+      LogDebug("## certificate's notAfterTime : " << msg);
+      fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
+
+      if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
+      {
+         LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+         fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
+         return WrtSignatureValidator::SIGNATURE_INVALID;
+      }
+
+      int year = (ta.tm_year - tb.tm_year) / 4;
+
+      if(year == 0)
+      {
+          tc.tm_year = tb.tm_year; 
+          tc.tm_mon = tb.tm_mon + 1;
+          tc.tm_mday = tb.tm_mday;
+
+          if(tc.tm_mon == 12)
+          {
+              tc.tm_year = ta.tm_year;       
+              tc.tm_mon = ta.tm_mon - 1;
+              tc.tm_mday = ta.tm_mday;
+              
+              if(tc.tm_mon < 0)
+              {
+                 tc.tm_year = ta.tm_year;
+                 tc.tm_mon = ta.tm_mon;
+                 tc.tm_mday = ta.tm_mday -1;
+
+                 if(tc.tm_mday == 0)
+                 {
+                    tc.tm_year = tb.tm_year;                
+                    tc.tm_mon = tb.tm_mon;
+                    tc.tm_mday = tb.tm_mday +1;
+                 }
+              }
+          }          
+      }
+      else{
+         tc.tm_year = tb.tm_year + year;
+         tc.tm_mon = (tb.tm_mon + ta.tm_mon )/2;
+         tc.tm_mday = (tb.tm_mday + ta.tm_mday)/2;  
+      }
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
+      LogDebug("## cmp cert with validation time : " << msg);
+      fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
+
+      time_t outCurrent = mktime(&tc);
+      context.validationTime = outCurrent;
+
+      fprintf(stderr, "## cmp outCurrent time : %ld\n", outCurrent);
+
+      //return WrtSignatureValidator::SIGNATURE_INVALID;
+    }	
+
 #endif
 
 #if 0
@@ -316,6 +416,7 @@ WrtSignatureValidator::Result ImplTizen::check(
         return WrtSignatureValidator::SIGNATURE_INVALID;
     }
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
     // ocspCheck will throw an exception on any error.
     // TODO Probably we should catch this exception and add
@@ -339,9 +440,12 @@ WrtSignatureValidator::Result ImplTizen::check(
         if (result == VERIFICATION_STATUS_UNKNOWN ||
             result == VERIFICATION_STATUS_ERROR)
         {
+            #ifdef _OCSP_POLICY_DISREGARD_UNKNOWN_OR_ERROR_CERTS_
             disregard = true;
+	    #endif
         }
     }
+#endif
 
     if (disregard) {
         LogWarning("Signature is disregard. RootCA is not a member of Tizen");
@@ -412,6 +516,8 @@ WrtSignatureValidator::Result ImplWac::check(
         << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
     LogDebug("Is root certificate from TIZEN_TEST domain:  "
         << storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
+        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
     LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
         << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
     LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
@@ -439,6 +545,8 @@ WrtSignatureValidator::Result ImplWac::check(
 	else
 	{
 		LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+		//Additional Check for certificate registration
+
 		if (data.getSignatureNumber() == 1)
 		{
 			if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
@@ -447,7 +555,7 @@ WrtSignatureValidator::Result ImplWac::check(
 			}
 			else
 			{
-				LogWarning("author-signature.xml has got unrecognized Root CA "
+				LogWarning("signature1.xml has got unrecognized Root CA "
 				        "certificate. Signature will be disregarded.");
 				disregard = true;
 			}
@@ -468,7 +576,7 @@ WrtSignatureValidator::Result ImplWac::check(
     // but still signature must be valid... Aaaaaa it's so stupid...
     if (!(root->isSignedBy(root))) {
         LogWarning("Root CA certificate not found. Chain is incomplete.");
-        context.allowBrokenChain = true;
+//        context.allowBrokenChain = true;
     }
 
     time_t nowTime = time(NULL);
@@ -480,20 +588,84 @@ WrtSignatureValidator::Result ImplWac::check(
     ASN1_TIME* notAfterTime = data.getEndEntityCertificatePtr()->getNotAfterTime();
     ASN1_TIME* notBeforeTime = data.getEndEntityCertificatePtr()->getNotBeforeTime();
 
-	if (data.isAuthorSignature())
-	{
-		if (X509_cmp_time(notBeforeTime, &nowTime) > 0)
-		{
-			LogDebug("notBeforeTime is greater then current time");
-			return WrtSignatureValidator::SIGNATURE_INVALID;
-		}
+		if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
+    {
+      struct tm *t;
+      struct tm ta, tb, tc;
+      char msg[1024];
 
-		if (X509_cmp_time(notAfterTime, &nowTime) < 0)
-		{
-			LogDebug("notAfterTime is less then current time");
-			return WrtSignatureValidator::SIGNATURE_INVALID;
-		}
-	}
+      t = localtime(&nowTime);
+
+      memset(&tc, 0, sizeof(tc));
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
+      LogDebug("## System's currentTime : " << msg);
+      fprintf(stderr, "## System's currentTime : %s\n", msg);
+
+      tb = _ASN1_GetTimeT(notBeforeTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
+      LogDebug("## certificate's notBeforeTime : " << msg);
+      fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
+
+      ta = _ASN1_GetTimeT(notAfterTime);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
+      LogDebug("## certificate's notAfterTime : " << msg);
+      fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
+
+      if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
+      {
+         LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+         fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
+         return WrtSignatureValidator::SIGNATURE_INVALID;
+      }
+
+      int year = (ta.tm_year - tb.tm_year) / 4;
+
+      if(year == 0)
+      {
+          tc.tm_year = tb.tm_year; 
+          tc.tm_mon = tb.tm_mon + 1;
+          tc.tm_mday = tb.tm_mday;
+
+          if(tc.tm_mon == 12)
+          {
+              tc.tm_year = ta.tm_year;       
+              tc.tm_mon = ta.tm_mon - 1;
+              tc.tm_mday = ta.tm_mday;
+              
+              if(tc.tm_mon < 0)
+              {
+                 tc.tm_year = ta.tm_year;
+                 tc.tm_mon = ta.tm_mon;
+                 tc.tm_mday = ta.tm_mday -1;
+
+                 if(tc.tm_mday == 0)
+                 {
+                    tc.tm_year = tb.tm_year;                
+                    tc.tm_mon = tb.tm_mon;
+                    tc.tm_mday = tb.tm_mday +1;
+                 }
+              }
+          }          
+      }
+      else{
+         tc.tm_year = tb.tm_year + year;
+         tc.tm_mon = (tb.tm_mon + ta.tm_mon )/2;
+         tc.tm_mday = (tb.tm_mday + ta.tm_mday)/2;  
+      }
+
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
+      LogDebug("## cmp cert with validation time : " << msg);
+      fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
+
+      time_t outCurrent = mktime(&tc);
+
+      fprintf(stderr, "## cmp outCurrent time : %ld\n", outCurrent);
+
+      context.validationTime = outCurrent;
+      //return WrtSignatureValidator::SIGNATURE_INVALID;
+    }	
+
 #endif
 
 #if 0
@@ -553,6 +725,7 @@ WrtSignatureValidator::Result ImplWac::check(
         return WrtSignatureValidator::SIGNATURE_INVALID;
     }
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
     // ocspCheck will throw an exception on any error.
     // TODO Probably we should catch this exception and add
@@ -576,9 +749,12 @@ WrtSignatureValidator::Result ImplWac::check(
         if (result == VERIFICATION_STATUS_UNKNOWN ||
             result == VERIFICATION_STATUS_ERROR)
         {
+#ifdef _OCSP_POLICY_DISREGARD_UNKNOWN_OR_ERROR_CERTS_
             disregard = true;
+#endif //_OCSP_POLICY_DISREGARD_UNKNOWN_OR_ERROR_CERTS_
         }
     }
+#endif
 
     if (disregard) {
         LogWarning("Signature is disregard. RootCA is not a member of Tizen.");

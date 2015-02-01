@@ -24,7 +24,7 @@
 #define _VALIDATION_CORE_ENGINE_CRLIMPL_H_
 
 #include <dpl/exception.h>
-#include <dpl/shared_ptr.h>
+#include <memory>
 #include <dpl/noncopyable.h>
 #include <dpl/log/log.h>
 
@@ -79,7 +79,7 @@ class CRLImpl : DPL::Noncopyable
             delete[] buffer;
         }
     };
-    typedef DPL::SharedPtr<CRLData> CRLDataPtr;
+    typedef std::shared_ptr<CRLData> CRLDataPtr;
 
     CRLDataPtr getCRL(const std::string &uri) const;
     CRLDataPtr downloadCRL(const std::string &uri);

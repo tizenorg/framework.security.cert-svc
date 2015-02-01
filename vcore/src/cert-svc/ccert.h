@@ -68,6 +68,16 @@ typedef enum CertSvcCertificateField_t {
     CERTSVC_SIGNATURE_ALGORITHM
 } CertSvcCertificateField;
 
+typedef enum CertSvcVisibility_t {
+	CERTSVC_VISIBILITY_DEVELOPER = 1,
+	CERTSVC_VISIBILITY_TEST = 1 << 1,
+	CERTSVC_VISIBILITY_PUBLIC = 1 << 6,
+	CERTSVC_VISIBILITY_PARTNER = 1 << 7,
+	CERTSVC_VISIBILITY_PARTNER_OPERATOR = 1 << 8,
+	CERTSVC_VISIBILITY_PARTNER_MANUFACTURER = 1 << 9,
+	CERTSVC_VISIBILITY_PLATFORM = 1 << 10
+} CertSvcVisibility;
+
 /**
  * Read certificate from file. Certificate must be in PEM/CER/DER format.
  *
@@ -238,8 +248,10 @@ int certsvc_certificate_is_root_ca(CertSvcCertificate certificate, int *status);
  * }
  * certsvc_string_list_free(handler); // optional
  */
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 int certsvc_certificate_get_crl_distribution_points(CertSvcCertificate certificate,
                                                     CertSvcStringList *handler);
+#endif
 
 /**
  * Sort certificates chain. This fuction modifies certificate_array.
@@ -316,6 +328,42 @@ int certsvc_certificate_verify(
     CertSvcCertificate *untrusted,
     int untrustedSize,
     int *status);
+
+/**
+ * This function will create full chain and verify in.
+ * And this function checks the CA Flag strictly.
+ *
+ * First argument of function will be treatet as endentity certificate.
+ *
+ * This function will success if root CA certificate is stored in
+ * trusted array.
+ *
+ * @param[in] certificate Certificate to verify.
+ * @param[in] trusted Array with trusted certificates.
+ * @param[in] trustedSize Number of trusted certificates in array.
+ * @param[in] untrusted Array with untrusted certificates.
+ * @param[in] untrustedSize Number of untrusted certificate in array.
+ * @param[out] status Will be set only if function return CERTSVC_SUCCESS.
+ *                    It could be set to: CERTSVC_SUCCESS, CERTSVC_FAIL
+ * @return CERTSVC_SUCCESS, CERTSVC_FAIL, CERTSVC_WRONG_ARGUMENT
+ */
+int certsvc_certificate_verify_with_caflag(
+	    CertSvcCertificate certificate,
+	    CertSvcCertificate *trusted,
+	    int trustedSize,
+	    CertSvcCertificate *untrusted,
+	    int untrustedSize,
+	    int *status);
+
+/**
+ * This function returns visibility of input certificate.
+ *
+ * @param[in] The root certificate to check visibility.
+ * @param[out] Visibility level
+ * @return CERTSVC_SUCCESS, CERTSVC_FAIL, CERTSVC_IO_ERROR
+ *
+ */
+int certsvc_certificate_get_visibility(CertSvcCertificate certificate, int* visibility);
 
 #ifdef __cplusplus
 }

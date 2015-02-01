@@ -21,23 +21,28 @@
 
 #include <vcore/VCorePrivate.h>
 #include <vcore/Config.h>
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 #include <vcore/Database.h>
-#include <openssl/ssl.h>
 #include <database_checksum_vcore.h>
+#endif
+#include <openssl/ssl.h>
 #include <glib.h>
 #include <glib-object.h>
 
 #include <dpl/assert.h>
 #include <dpl/log/log.h>
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 namespace {
 DPL::DB::ThreadDatabaseSupport *threadInterface = NULL;
 } // namespace anonymous
+#endif
 
 namespace ValidationCore {
 
 void AttachToThreadRO(void)
 {
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     Assert(threadInterface);
     static bool check = true;
     threadInterface->AttachToThread(
@@ -48,12 +53,14 @@ void AttachToThreadRO(void)
         check = false;
         Assert(ThreadInterface().CheckTableExist(DB_CHECKSUM_STR) &&
                "Not a valid vcore database version");
-    }
+	}
+#endif
 }
 
 void AttachToThreadRW(void)
 {
-    Assert(threadInterface);
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	Assert(threadInterface);
     static bool check = true;
     threadInterface->AttachToThread(
         DPL::DB::SqlConnection::Flag::RW);
@@ -64,23 +71,27 @@ void AttachToThreadRW(void)
         Assert(ThreadInterface().CheckTableExist(DB_CHECKSUM_STR) &&
                "Not a valid vcore database version");
     }
+#endif
 }
 
 void DetachFromThread(void){
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     Assert(threadInterface);
     threadInterface->DetachFromThread();
+#endif
 }
-
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 DPL::DB::ThreadDatabaseSupport& ThreadInterface(void) {
     Assert(threadInterface);
     return *threadInterface;
 }
-
+#endif
 bool VCoreInit(const std::string& configFilePath,
                const std::string& configSchemaPath,
                const std::string& databasePath)
 {
-    if(threadInterface) {
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	if(threadInterface) {
         LogDebug("Already Initialized");
         return true;
     }
@@ -88,7 +99,7 @@ bool VCoreInit(const std::string& configFilePath,
     threadInterface = new DPL::DB::ThreadDatabaseSupport(
         databasePath.c_str(),
         DPL::DB::SqlConnection::Flag::UseLucene);
-
+#endif
     SSL_library_init();
 //    g_thread_init(NULL);
     g_type_init();
@@ -103,9 +114,11 @@ bool VCoreInit(const std::string& configFilePath,
 
 void VCoreDeinit()
 {
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     Assert(threadInterface && "Not initialized or already deinitialized");
     delete threadInterface;
     threadInterface = NULL;
+#endif
 }
 
 } // namespace ValidationCore

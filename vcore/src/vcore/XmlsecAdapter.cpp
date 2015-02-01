@@ -131,7 +131,7 @@ void LogDebugPrint(const char* file, int line, const char* func,
        int reason, const char* msg)
 {
     char total[1024];
-    sprintf(total, "[%s(%d)] : [%s] : [%s] : [%s]", func, line, errorObject, errorSubject, msg);
+    snprintf(total, sizeof(total), "[%s(%d)] : [%s] : [%s] : [%s]", func, line, errorObject, errorSubject, msg);
 
     if(reason != 256)
     {
@@ -306,7 +306,7 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
         char* uri = NULL;
         int len;
 
-        for(itr; itr != m_pList->end(); ++itr) {
+        for(; itr != m_pList->end(); ++itr) {
            tmpString = (*itr);
            uri = (char*)tmpString.c_str();
            len = strlen(uri);
@@ -458,7 +458,7 @@ XmlSec::Result XmlSec::validate(XmlSecContext *context)
 {
     Assert(context);
     Assert(!(context->signatureFile.empty()));
-    Assert(context->certificatePtr.Get() || !(context->certificatePath.empty()));
+    Assert(context->certificatePtr.get() || !(context->certificatePath.empty()));
 
     xmlSecErrorsSetCallback(LogDebugPrint);
 
@@ -480,7 +480,7 @@ XmlSec::Result XmlSec::validate(XmlSecContext *context)
     }
     context->referenceSet.clear();
 
-    if (context->certificatePtr.Get()) {
+    if (context->certificatePtr.get()) {
         loadDERCertificateMemory(context, mngr.get());
     }
 

@@ -1,4 +1,5 @@
 #DB vcore
+IF(TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
 PKG_CHECK_MODULES(VCORE_DB_DEP
     dpl-efl
     REQUIRED)
@@ -32,5 +33,5 @@ ADD_CUSTOM_TARGET(Sqlite3DbVCORE ALL DEPENDS .cert_svc_vcore.db .cert_svc_vcore.
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/cert_svc_vcore_db.sql
     DESTINATION /usr/share/cert-svc/
     )
-
+ENDIF()
 ADD_SUBDIRECTORY(src)

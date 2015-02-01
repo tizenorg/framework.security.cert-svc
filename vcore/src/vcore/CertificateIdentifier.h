@@ -25,7 +25,6 @@
     _WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_CERTIFICATEIDENTIFICATOR_H_
 
 #include <map>
-
 #include <dpl/noncopyable.h>
 
 #include "Certificate.h"
@@ -34,8 +33,8 @@
 namespace ValidationCore {
 class CertificateIdentifier : public DPL::Noncopyable
 {
-  public:
-    typedef std::map<Certificate::Fingerprint, CertStoreId::Set> FingerPrintMap;
+public:
+	typedef std::map<Certificate::Fingerprint, CertStoreId::Set> FingerPrintMap;
 
     CertificateIdentifier()
     {
@@ -49,6 +48,14 @@ class CertificateIdentifier : public DPL::Noncopyable
     {
         fingerPrintMap[fingerprint].add(domain);
     }
+
+	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    void add(const Certificate::Fingerprint &fingerprint,
+			std::string ocspUrl)
+    {
+    	fingerPrintMap[fingerprint].add(ocspUrl);
+    }
+	#endif
 
     CertStoreId::Set find(const Certificate::Fingerprint &fingerprint) const
     {

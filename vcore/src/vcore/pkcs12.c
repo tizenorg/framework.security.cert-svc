@@ -22,6 +22,8 @@
 #define _GNU_SOURCE
 #define  _CERT_SVC_VERIFY_PKCS12
 
+#include <cert-service.h>
+#include "cert-service-util.h"
 #include "pkcs12.h"
 #include <cert-svc/cerror.h>
 #include <unistd.h>
@@ -117,26 +119,36 @@ static int unique_filename(char **filepath, gboolean with_secure_storage) {
   const unsigned attempts = 0xFFU;
   unsigned trial;
   int result;
-  ssm_file_info_t sfi;
   gboolean exists;
+  char* data = NULL;
+  char* tempfilepath = NULL;
 
   trial = 0U;
  try_again:
   ++trial;
-  result = generate_random_filepath(filepath);
+  result = generate_random_filepath(&tempfilepath);
   if(result != CERTSVC_SUCCESS)
     return result;
   if(with_secure_storage)
-    exists = (access(*filepath, F_OK) == 0 || ssm_getinfo(*filepath, &sfi, SSM_FLAG_DATA, CERTSVC_PKCS12_UNIX_GROUP) == 0);
+    exists = (access(tempfilepath, F_OK) == 0 || ssa_get(tempfilepath, &data, CERTSVC_PKCS12_UNIX_GROUP, NULL) >= 0);
   else
-    exists = (access(*filepath, F_OK) == 0);
-  if(exists) {
-    free(*filepath);
+    exists = (access(tempfilepath, F_OK) == 0);
+
+  if(!exists) {
+    *filepath = tempfilepath;
+  }
+  else {
+    if(data){
+      free(data);
+      data = NULL;
+    }
+    free(tempfilepath);
     if(trial + 1 > attempts)
       return CERTSVC_FAIL;
     else
       goto try_again;
   }
+
   return CERTSVC_SUCCESS;
 }
 
@@ -172,9 +184,10 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
   STACK_OF(X509) *certv;
   int nicerts;
   char *unique;
-  int result;
+  int result = 0;
   struct stat st;
   int wr_res;
+  void* dlHandle = NULL;
   GKeyFile *keyfile;
   gchar *bare;
   gchar *pkvalue;
@@ -184,6 +197,8 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
   gsize length;
   static int  initFlag = 0;
   const char appInfo[]  = "certsvcp12";
+  int readLen = 0;
+  char fileBuffer[4096] = {0,};
 
   certv = NULL;
   pkvalue = NULL;
@@ -215,10 +230,28 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
     result = CERTSVC_FAIL;
     goto free_keyfile;
   }
+
+#ifdef TIZEN_FEATURE_OSP_DISABLE
+	LOGD("TIZEN_FEAT_OSP_DISABLE is 1");
+#endif
+
+#ifndef TIZEN_FEATURE_OSP_DISABLE
+	LOGD("TIZEN_FEAT_OSP_DISABLE is 0");
+#endif
+
+#ifndef TIZEN_FEATURE_OSP_DISABLE
+  dlHandle = dlopen("/usr/lib/osp/libosp-appfw.so", RTLD_LAZY);
+  if (!dlHandle)
+  {
+	  LOGD("Failed to open so with reason : %s",  dlerror());
+	  goto free_keyfile;
+  }
+#endif
   result = PKCS12_parse(container, password, &key, &cert, &certv);
   PKCS12_free(container);
 	if (result == 0)
 	{
+		LOGD("Failed to parse PKCS12");
 		result = CERTSVC_FAIL;
 		goto free_keyfile;
 	}
@@ -230,7 +263,7 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
 	{
 		char* pSubject = NULL;
 		char* pIssuerName = NULL;
-		int isSelfSigned = 0;
+		//int isSelfSigned = 0;
 
 		pSubject = X509_NAME_oneline(cert->cert_info->subject, NULL, 0);
 		if (!pSubject)
@@ -252,7 +285,7 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
 		if (strcmp((const char*)pSubject, (const char*)pIssuerName) == 0)
 		{
 			//self signed..
-			isSelfSigned = 1;
+			//isSelfSigned = 1;
 
 			EVP_PKEY* pKey = X509_get_pubkey(cert);
 			if (!pKey)
@@ -278,7 +311,7 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
 		}
 		else
 		{
-			isSelfSigned = 0;
+			//isSelfSigned = 0;
 			int res = 0;
 			X509_STORE_CTX *cert_ctx = NULL;
 			X509_STORE *cert_store = NULL;
@@ -434,23 +467,39 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
   result = unique_filename(&unique, TRUE);
   if(result != CERTSVC_SUCCESS)
     goto clean_cert_chain_and_pkey;
-  if((stream = fopen(unique, "w")) == NULL) {
+  if((stream = fopen(unique, "w+")) == NULL) {
     free(unique);
     result = CERTSVC_IO_ERROR;
     goto clean_cert_chain_and_pkey;
   }
   result = PEM_write_PrivateKey(stream, key, NULL, NULL, 0, NULL, NULL);
-  fclose(stream);
   if(result == 0) {
     result = CERTSVC_FAIL;
+    fclose(stream);
+    free(unique);
     goto clean_cert_chain_and_pkey;
   }
-  wr_res = ssm_write_file(unique, SSM_FLAG_DATA, CERTSVC_PKCS12_UNIX_GROUP);
-  if(wr_res != 0) {
+
+  fseek(stream, 0, SEEK_SET);
+
+  readLen = fread(fileBuffer, sizeof(char), 4096, stream);
+  fclose(stream);
+  if(readLen <= 0){
     free(unique);
     result = CERTSVC_FAIL;
+    SLOGE("failed to read key file");
     goto clean_cert_chain_and_pkey;
   }
+
+  wr_res = ssa_put(unique, fileBuffer, readLen, CERTSVC_PKCS12_UNIX_GROUP, NULL);
+  if(wr_res <= 0) {
+    free(unique);
+    result = CERTSVC_FAIL;
+    SLOGE("ssa_put failed : %d", wr_res);
+    goto clean_cert_chain_and_pkey;
+  }
+  unlink(unique);
+
   bare = bare_filename(unique);
   if(bare) {
     pkvalue = g_strdup(bare);
@@ -475,7 +524,7 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
   if(bare)
     cvaluev[n++] = g_strdup(bare);
   free(unique);
-  for(i = 0; i < nicerts; i++) {
+  for(i = 0; i < (unsigned int)nicerts; i++) {
     result = unique_filename(&unique, FALSE);
     if(result != CERTSVC_SUCCESS)
       goto clean_cert_chain_and_pkey;
@@ -508,57 +557,50 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
   }
   result = CERTSVC_SUCCESS;
 
-#if 1
-  	SECURE_LOGD("( %s, %s)", path, password);
-    void* pSymAddr = NULL;
-	void* pInitAddr = NULL;
-	typedef int (*InsertPkcs12FuncPointer)(const char*, const char*);
-	typedef void (*InitAppInfoPointer)(const char*, const char*);
+  SECURE_LOGD("( %s, %s)", path, password);
+#ifndef TIZEN_FEATURE_OSP_DISABLE
 
-	InsertPkcs12FuncPointer pInsertPkcs12FuncPointer = NULL;
-	InitAppInfoPointer pInit = NULL;
+  typedef int (*InsertPkcs12FuncPointer)(const char*, const char*);
+  typedef void (*InitAppInfoPointer)(const char*, const char*);
 
-	void* dlHandle = dlopen("/usr/lib/osp/libosp-appfw.so", RTLD_LAZY);
-	if (!dlHandle)
-	{
-		LOGD("Failed to open so with reason : %s",  dlerror());
-		goto free_data;
-	}
+  InsertPkcs12FuncPointer pInsertPkcs12FuncPointer = NULL;
+  InitAppInfoPointer pInit = NULL;
 
-	pInsertPkcs12FuncPointer = (InsertPkcs12FuncPointer)dlsym(dlHandle, "InsertPkcs12Content");
-	if (dlerror() != NULL)
-	{
-		LOGD("Failed to find InsertPkcs12Content symbol : %s",  dlerror());
-		goto free_data;
-	}
 
-	if(initFlag == 0)
-	{
-		pInit = (InitAppInfoPointer)dlsym(dlHandle, "InitWebAppInfo");
-		if (dlerror() != NULL)
-		{
-			LOGD("Failed to find InitWebAppInfo symbol : %s",  dlerror());
-			goto free_data;
-		}
+  pInsertPkcs12FuncPointer = (InsertPkcs12FuncPointer)dlsym(dlHandle, "InsertPkcs12Content");
+  if (dlerror() != NULL)
+  {
+	  LOGD("Failed to find InsertPkcs12Content symbol : %s",  dlerror());
+	  result = CERTSVC_FAIL;
+	  goto free_data;
+  }
 
-		pInit(appInfo, NULL);
-		initFlag = 1;
-	}
+  if(initFlag == 0)
+  {
+	  pInit = (InitAppInfoPointer)dlsym(dlHandle, "InitWebAppInfo");
+	  if (dlerror() != NULL)
+	  {
+		  LOGD("Failed to find InitWebAppInfo symbol : %s",  dlerror());
+		  result = CERTSVC_FAIL;
+		  goto free_data;
+	  }
 
-	int errCode = pInsertPkcs12FuncPointer(path, password);
-	if (errCode != 0)
-	{
-		LOGD("dlHandle is not able to call function");
-		goto free_data;
-	}
-	dlclose(dlHandle);
+	  pInit(appInfo, NULL);
+	  initFlag = 1;
+  }
+
+  int errCode = pInsertPkcs12FuncPointer(path, password);
+  if (errCode != 0)
+  {
+	  LOGD("dlHandle is not able to call function");
+	  c_certsvc_pkcs12_delete(alias);
+	  result = CERTSVC_FAIL;
+	  goto free_data;
+  }
 #endif
-
  free_data:
   g_free(data);
-  if(dlHandle){
-    dlclose(dlHandle);
-  }
+
  clean_cert_chain_and_pkey:
   EVP_PKEY_free(key);
   X509_free(cert);
@@ -570,6 +612,11 @@ int c_certsvc_pkcs12_import(const char *path, const char *password, const gchar 
   free(cvaluev);
  free_keyfile:
   g_key_file_free(keyfile);
+#ifndef TIZEN_FEATURE_OSP_DISABLE
+  if(dlHandle){
+    dlclose(dlHandle);
+  }
+#endif
   return result;
 }
 
@@ -657,7 +704,6 @@ int c_certsvc_pkcs12_private_key_load(const gchar *alias, char **buffer, gsize *
   GKeyFile *keyfile;
   gchar *pkey;
   GError *error;
-  ssm_file_info_t sfi;
   char *spkp;
   int result;
 
@@ -667,7 +713,9 @@ int c_certsvc_pkcs12_private_key_load(const gchar *alias, char **buffer, gsize *
   if(!keyfile)
     return CERTSVC_IO_ERROR;
   error = NULL;
+
   result = CERTSVC_SUCCESS;
+
   pkey = g_key_file_get_string(keyfile, alias, CERTSVC_PKCS12_STORAGE_KEY_PKEY, &error);
   if(error && error->code == G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
     *count = 0;
@@ -680,15 +728,9 @@ int c_certsvc_pkcs12_private_key_load(const gchar *alias, char **buffer, gsize *
       spkp = NULL;
       result = CERTSVC_BAD_ALLOC;
     }
-    else if(ssm_getinfo(spkp, &sfi, SSM_FLAG_DATA, CERTSVC_PKCS12_UNIX_GROUP) == 0) {
-      if((*buffer = malloc(sfi.originSize))) {
-        if(ssm_read(spkp, *buffer, sfi.originSize, count, SSM_FLAG_DATA, CERTSVC_PKCS12_UNIX_GROUP) != 0) {
-          c_certsvc_pkcs12_private_key_free(*buffer);
-          result = CERTSVC_FAIL;
-        }
-      }
-      else
-        result = CERTSVC_BAD_ALLOC;
+    else if((*count = ssa_get(spkp, buffer, CERTSVC_PKCS12_UNIX_GROUP, NULL)) <= 0) {
+      result = CERTSVC_FAIL;
+	  LOGE("ssa_get failed : %s, %d", spkp, *count);
     }
     free(spkp);
     g_free(pkey);
@@ -699,6 +741,109 @@ int c_certsvc_pkcs12_private_key_load(const gchar *alias, char **buffer, gsize *
 
 void c_certsvc_pkcs12_private_key_free(char *buffer) {
   free(buffer);
+}
+
+static void _delete_from_osp_cert_mgr(const char* path);
+
+static void
+_delete_from_osp_cert_mgr(const char* path)
+{
+
+	typedef int (*RemoveUserCertificatePointer)(unsigned char*, int);
+	typedef void (*InitAppInfoPointer)(const char*, const char*);
+
+	static int initFlag = 0;
+
+	unsigned char* pCertBuffer = NULL;
+	int certBufferLen = 0;
+	const char appInfo[]  = "certsvcp12";
+
+	RemoveUserCertificatePointer pRemoveUserCertificatePointer = NULL;
+	InitAppInfoPointer pInit = NULL;
+	void* dlHandle = dlopen("/usr/lib/osp/libosp-appfw.so", RTLD_LAZY);
+	if (!dlHandle)
+	{
+		LOGD("Failed to open so with reason : %s",  dlerror());
+		goto end_of_func;
+	}
+
+	pRemoveUserCertificatePointer = (RemoveUserCertificatePointer)dlsym(dlHandle, "RemoveUserCertificate");
+	if (dlerror() != NULL)
+	{
+		LOGD("Failed to find RemoveUserCertificate symbol : %s",  dlerror());
+		goto end_of_func;
+	}
+
+	if(initFlag == 0)
+	{
+		pInit = (InitAppInfoPointer)dlsym(dlHandle, "InitWebAppInfo");
+		if (dlerror() != NULL)
+		{
+		  LOGD("Failed to find InitWebAppInfo symbol : %s",  dlerror());
+		  goto end_of_func;
+		}
+
+		pInit(appInfo, NULL);
+		initFlag = 1;
+	}
+
+	int result = certsvc_load_file_to_buffer(path, &pCertBuffer, &certBufferLen);
+	if (result != 0 )
+	{
+	  LOGD("certsvc_load_file_to_buffer Failed.");
+       	  goto end_of_func;
+	}
+	int errCode = pRemoveUserCertificatePointer(pCertBuffer, certBufferLen);
+	if (errCode != 0)
+	{
+	  LOGD("dlHandle is not able to call function");
+	  goto end_of_func;
+	}
+
+end_of_func:
+
+	if(dlHandle){
+	  dlclose(dlHandle);
+	}
+	return;
+}
+
+
+int certsvc_load_file_to_buffer(const char* filePath, unsigned char** certBuf, int* length)
+{
+	int ret = CERT_SVC_ERR_NO_ERROR;
+	FILE* fp_in = NULL;
+	unsigned long int fileSize = 0;
+
+	/* get file size */
+	if((ret = cert_svc_get_file_size(filePath, &fileSize)) != CERT_SVC_ERR_NO_ERROR) {
+		SECURE_SLOGE("[ERR][%s] Fail to get file size, [%s]\n", __func__, filePath);
+		return CERT_SVC_ERR_FILE_IO;
+	}
+	/* open file and write to buffer */
+	if(!(fp_in = fopen(filePath, "rb"))) {
+		SECURE_SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, filePath);
+		return CERT_SVC_ERR_FILE_IO;
+	}
+
+	if(!(*certBuf = (unsigned char*)malloc(sizeof(unsigned char) * (unsigned int)(fileSize + 1)))) {
+		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
+		goto err;
+	}
+	memset(*certBuf, 0x00, (fileSize + 1));
+	if(fread(*certBuf, sizeof(unsigned char), fileSize, fp_in) != fileSize) {
+		SECURE_SLOGE("[ERR][%s] Fail to read file, [%s]\n", __func__, filePath);
+		ret = CERT_SVC_ERR_FILE_IO;
+		goto err;
+	}
+
+	*length = fileSize;
+
+err:
+	if(fp_in != NULL)
+		fclose(fp_in);
+	return ret;
 }
 
 int c_certsvc_pkcs12_delete(const gchar *alias) {
@@ -732,14 +877,18 @@ int c_certsvc_pkcs12_delete(const gchar *alias) {
       goto data_free;
     }
   }
+
+  _delete_from_osp_cert_mgr(certs[0]);
   for(i = 0; i < ncerts; i++)
+  {
     unlink(certs[i]);
+  }
   if(pkey != NULL) {
       if(asprintf(&spkp, "%s/%s", CERTSVC_PKCS12_STORAGE_DIR, pkey) == -1) {
           result = CERTSVC_BAD_ALLOC;
           goto data_free;
       }
-      ssm_delete_file(spkp, SSM_FLAG_DATA, CERTSVC_PKCS12_UNIX_GROUP);
+      ssa_delete(spkp, CERTSVC_PKCS12_UNIX_GROUP);
       free(spkp);
   }
  data_free:
@@ -751,4 +900,26 @@ int c_certsvc_pkcs12_delete(const gchar *alias) {
       c_certsvc_pkcs12_free_certificates(certs);
  load_certificates_failed:
   return result;
+}
+
+
+int cert_svc_get_file_size(const char* filepath, unsigned long int* length)
+{
+	int ret = CERT_SVC_ERR_NO_ERROR;
+	FILE* fp_in = NULL;
+
+	if(!(fp_in = fopen(filepath, "r"))) {
+		SECURE_SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, filepath);
+		ret = CERT_SVC_ERR_FILE_IO;
+		goto err;
+	}
+
+	fseek(fp_in, 0L, SEEK_END);
+	(*length) = ftell(fp_in);
+
+err:
+	if(fp_in != NULL)
+		fclose(fp_in);
+
+	return ret;
 }

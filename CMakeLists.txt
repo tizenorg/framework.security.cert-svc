@@ -31,15 +31,25 @@ SET(CMAKE_CXX_FLAGS_CCOV "-std=c++0x -Wall -O2 --coverage")
 SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--as-needed")
 SET(CMAKE_EXE_LINKER_FLAGS "-Wl,--as-needed")
 SET(CMAKE_SKIP_RPATH "TRUE")
+#SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wmissing-declarations")
 
 ################################################################################
 # for libcert-svc.so
 ################################################################################
 
+IF(_WEARABLE)
+    ADD_DEFINITIONS("-D_WEARABLE")
+ENDIF(_WEARABLE)
+
+IF(_MOBILE)
+    ADD_DEFINITIONS("-D_MOBILE")
+ENDIF(_MOBILE)
+
 PKG_CHECK_MODULES(CERT_SVC_DEPS
     openssl
     dlog
     glib-2.0
+    libxml-2.0
     REQUIRED
 )
 
@@ -59,6 +69,11 @@ INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/include
     ${CERT_SVC_DEPS_INCLUDE_DIRS}
 )
+
+ADD_DEFINITIONS("-DDPL_LOGS_ENABLED")
+IF(TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+ADD_DEFINITIONS("-DTIZEN_FEATURE_CERT_SVC_OCSP_CRL")
+ENDIF()
 
 ADD_LIBRARY(${TARGET_CERT_SVC_LIB} SHARED ${CERT_SVC_SOURCES})
 
@@ -86,26 +101,33 @@ INSTALL(FILES
     DESTINATION ${LIBDIR}/pkgconfig
 )
 INSTALL(FILES ${PROJECT_SOURCE_DIR}/targetinfo DESTINATION /opt/share/cert-svc/)
+INSTALL(FILES ${PROJECT_SOURCE_DIR}/res/pin/.pin DESTINATION /opt/share/cert-svc/pin/)
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/cert-service.h DESTINATION ${INCLUDEDIR})
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/res/ca-certificate.crt DESTINATION /opt/share/cert-svc/)
 
 # Now we must create empty directory for certificates.
 # Without this directories rpm package will fail during build.
+#INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
+#    DESTINATION /usr/share/cert-svc/ca-certs/code-signing/native
+#    FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
+#)
+#INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
+#    DESTINATION /usr/share/cert-svc/ca-certs/code-signing/wac
+#    FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
+#)
 INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
-    DESTINATION /usr/share/cert-svc/ca-certs/code-signing/native
+    DESTINATION /usr/share/cert-svc/certs/code-signing/wac
     FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
 )
 INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
-    DESTINATION /usr/share/cert-svc/ca-certs/code-signing/wac
+    DESTINATION /usr/share/cert-svc/certs/code-signing/tizen
     FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
 )
-INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
-    DESTINATION /opt/share/cert-svc/certs/code-signing/wac
-    FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
+IF(TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+INSTALL(FILES ${PROJECT_SOURCE_DIR}/res/fota/FOTA_ROOT.cer
+    DESTINATION /usr/share/cert-svc/certs/fota
 )
-INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
-    DESTINATION /opt/share/cert-svc/certs/code-signing/tizen
-    FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
-)
+ENDIF()
 INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
     DESTINATION /opt/share/cert-svc/certs/sim/operator
     FILES_MATCHING PATTERN THISPATTERNMUSTNOTMATCH
@@ -137,3 +159,4 @@ INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/etc/empty
 
 ADD_SUBDIRECTORY(vcore)
 ADD_SUBDIRECTORY(etc)
+ADD_SUBDIRECTORY(tests)

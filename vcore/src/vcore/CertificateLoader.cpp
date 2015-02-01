@@ -22,7 +22,9 @@
 
 #include <vcore/Base64.h>
 #include <vcore/CertificateLoader.h>
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 #include <vcore/SSLContainers.h>
+#endif
 
 namespace {
 const int MIN_RSA_KEY_LENGTH = 1024;
