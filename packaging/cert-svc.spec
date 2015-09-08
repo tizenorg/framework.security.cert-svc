@@ -1,34 +1,35 @@
-#sbs-git:slp/pkgs/c/cert-svc cert-svc 1.0.1 ad7eb7efcefb37b06017c69cb2fc44e6f7b6cab7
+%define tizen_feature_certsvc_ocsp_crl 0
+%define certsvc_build_test_package 0
+
 Name:    cert-svc
 Summary: Certification service
 Version: 1.0.1
-Release: 31
+Release: 45
 Group:   System/Libraries
-License: SAMSUNG
+License: Apache-2.0
 Source0: %{name}-%{version}.tar.gz
-
 Requires(post):   /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
-
 BuildRequires: cmake
 BuildRequires: pkgconfig(dlog)
 BuildRequires: pkgconfig(openssl)
-BuildRequires: pkgconfig(evas)
-BuildRequires: pkgconfig(dpl-efl)
-BuildRequires: pkgconfig(libsoup-2.4)
-BuildRequires: pkgconfig(libpcre)
 BuildRequires: pkgconfig(libpcrecpp)
 BuildRequires: pkgconfig(xmlsec1)
 BuildRequires: pkgconfig(secure-storage)
 BuildRequires: pkgconfig(glib-2.0)
 BuildRequires: pkgconfig(libxml-2.0)
 BuildRequires: pkgconfig(libxslt)
-
+BuildRequires: pkgconfig(icu-i18n)
+BuildRequires: pkgconfig(libsoup-2.4)
+BuildRequires: boost-devel
+%if 0%{?tizen_feature_certsvc_ocsp_crl}
+BuildRequires: pkgconfig(vconf)
+BuildRequires: pkgconfig(sqlite3)
+%endif
 Provides: libcert-svc-vcore.so.1
 
 %description
 Certification service
-
 
 %package devel
 Summary:    Certification service (development files)
@@ -38,32 +39,72 @@ Requires:   %{name} = %{version}-%{release}
 %description devel
 Certification service (developement files)
 
+%if 0%{?certsvc_build_test_package}
 %package test
 Summary:  Certification service (tests)
 Group:    System/Misc
+Requires: boost-devel
 Requires: %{name} = %{version}-%{release}
 
 %description test
 Certification service (tests)
+%endif
 
 %prep
 %setup -q
 
 %build
-cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
+
+export CFLAGS="$CFLAGS -DTIZEN_DEBUG_ENABLE"
+export CXXFLAGS="$CXXFLAGS -DTIZEN_DEBUG_ENABLE"
+export FFLAGS="$FFLAGS -DTIZEN_DEBUG_ENABLE"
+
+
+export CFLAGS="$CFLAGS -DTIZEN_ENGINEER_MODE"
+export CXXFLAGS="$CXXFLAGS -DTIZEN_ENGINEER_MODE"
+export FFLAGS="$FFLAGS -DTIZEN_ENGINEER_MODE"
+
+%ifarch %{ix86}
+export CFLAGS="$CFLAGS -DTIZEN_EMULATOR_MODE"
+export CXXFLAGS="$CXXFLAGS -DTIZEN_EMULATOR_MODE"
+export FFLAGS="$FFLAGS -DTIZEN_EMULATOR_MODE"
+%endif
+
+%{!?build_type:%define build_type "RELEASE"}
+cmake . -DPREFIX=%{_prefix} \
+        -DEXEC_PREFIX=%{_exec_prefix} \
+        -DLIBDIR=%{_libdir} \
+        -DBINDIR=%{_bindir} \
+        -DINCLUDEDIR=%{_includedir} \
+        -DTIZEN_ENGINEER_MODE=1 \
+%if 0%{?tizen_feature_certsvc_ocsp_crl}
+        -DTIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL=1 \
+%endif
+%if 0%{?certsvc_build_test_package}
+        -DCERTSVC_BUILD_TEST_PACKAGE=1 \
+%endif
+        -DCMAKE_BUILD_TYPE=%{build_type}
+
 make %{?jobs:-j%jobs}
 
 %install
 rm -rf %{buildroot}
+mkdir -p %{buildroot}/usr/share/license
+mkdir -p %{buildroot}/opt/share/cert-svc
+cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
 %make_install
+ln -sf /opt/etc/ssl/certs %{buildroot}/opt/share/cert-svc/certs/ssl
+touch %{buildroot}/opt/share/cert-svc/pkcs12/storage
+chmod 766 %{buildroot}/opt/share/cert-svc/pkcs12/storage
 
 %clean
 rm -rf %{buildroot}
 
 %post
 /sbin/ldconfig
+%if 0%{?tizen_feature_certsvc_ocsp_crl}
 if [ -z ${2} ]; then
-    echo "This is new install of wrt-security"
+    echo "This is new install of cert-svc"
     echo "Calling /usr/bin/cert_svc_create_clean_db.sh"
     /usr/bin/cert_svc_create_clean_db.sh
 else
@@ -85,46 +126,53 @@ else
         /usr/bin/cert_svc_create_clean_db.sh
     fi
 fi
-
-ln -s /opt/etc/ssl/certs /usr/share/cert-svc/ca-certs/ssl
+rm /usr/bin/cert_svc_create_clean_db.sh
+%endif #tizen_feature_certsvc_ocsp_crl
 
 %postun
 /sbin/ldconfig
-rm /usr/share/cert-svc/ca-certs/ssl
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/cert_svc_create_clean_db.sh
+%manifest %{name}.manifest
+%attr(0755,root,root) %{_bindir}/cert_svc_create_clean_db.sh
 %{_libdir}/*.so.*
-%{_bindir}/dpkg-pki-sig
+#%{_bindir}/dpkg-pki-sig
 /opt/share/cert-svc/targetinfo
+%if 0%{?tizen_feature_certsvc_ocsp_crl}
 %{_datadir}/cert-svc/cert_svc_vcore_db.sql
-%{_datadir}/cert-svc/fingerprint_list.xml
-%{_datadir}/cert-svc/fingerprint_list.xsd
-%{_datadir}/cert-svc/schema.xsd
+%endif
+%{_datadir}/license/%{name}
 %dir %attr(0755,root,use_cert) /usr/share/cert-svc
-%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs
-%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs/code-signing
-%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs/code-signing/native
-%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs/code-signing/wac
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/code-signing
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/code-signing/wac
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/sim
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/sim/operator
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/sim/thirdparty
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/ssl
+#%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs
+#%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs/code-signing
+#%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs/code-signing/native
+#%dir %attr(0755,root,use_cert) /usr/share/cert-svc/ca-certs/code-signing/wac
+%dir %attr(0775,root,use_cert) /usr/share/cert-svc/certs/code-signing
+%dir %attr(0775,root,use_cert) /usr/share/cert-svc/certs/code-signing/wac
+%dir %attr(0775,root,use_cert) /usr/share/cert-svc/certs/code-signing/tizen
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs
+#%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/code-signing
+#%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/code-signing/wac
+#%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/code-signing/tizen
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/sim
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/sim/operator
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/sim/thirdparty
 %dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/user
 %dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/trusteduser
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/mdm
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/mdm/security
-%dir %attr(0777,root,use_cert) /opt/share/cert-svc/certs/mdm/security/cert
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/mdm
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/mdm/security
+%dir %attr(0775,root,use_cert) /opt/share/cert-svc/certs/mdm/security/cert
 %dir %attr(0777,root,use_cert) /opt/share/cert-svc/pkcs12
-/opt/share/cert-svc/certs/code-signing/wac/wac0.root.preproduction.pem
-/opt/share/cert-svc/certs/code-signing/wac/wac0.root.production.pem
-/opt/share/cert-svc/certs/code-signing/wac/wac0.publisherid.pem
-/opt/share/cert-svc/certs/code-signing/wac/tizen0.root.preproduction.cert.pem
+%dir %attr(0700, root, root) /opt/share/cert-svc/pin
+%if 0%{?tizen_feature_certsvc_ocsp_crl}
+%attr(0755,root,use_cert) /usr/share/cert-svc/certs/fota/*
+%endif
+/opt/share/cert-svc/pin/.pin
+/opt/share/cert-svc/certs/ssl
+/opt/share/cert-svc/pkcs12/storage
+%attr(0755,root,app) /opt/share/cert-svc/ca-certificate.crt
 
 %files devel
 %defattr(-,root,root,-)
@@ -132,12 +180,34 @@ rm /usr/share/cert-svc/ca-certs/ssl
 %{_libdir}/pkgconfig/*
 %{_libdir}/*.so
 
+%if 0%{?certsvc_build_test_package}
+%pre test
+rm -rf /usr/share/cert-svc/certs/code-signing/wac/root_cacert0.pem
+##rm -rf /opt/share/cert-svc/certs/code-signing/wac/root_cacert0.pem
+
 %files test
 %defattr(-,root,root,-)
 %{_bindir}/cert-svc-test*
 /opt/apps/widget/tests/vcore_widget_uncompressed/*
+/opt/apps/widget/tests/vcore_widget_uncompressed_negative_hash/*
+/opt/apps/widget/tests/vcore_widget_uncompressed_negative_signature/*
+/opt/apps/widget/tests/vcore_widget_uncompressed_negative_certificate/*
+/opt/apps/widget/tests/vcore_widget_uncompressed_partner/*
+/opt/apps/widget/tests/vcore_widget_uncompressed_partner_operator/*
 /opt/apps/widget/tests/vcore_keys/*
 /opt/apps/widget/tests/vcore_certs/*
+/opt/apps/widget/tests/vcore_config/*
 /opt/apps/widget/tests/pkcs12/*
-/opt/share/cert-svc/certs/code-signing/wac/root_cacert0.pem
+/opt/apps/widget/tests/reference/*
+/opt/etc/ssl/certs/8956b9bc.0
+/usr/share/cert-svc/certs/code-signing/wac/root_cacert0.pem
+#/opt/share/cert-svc/certs/code-signing/wac/root_cacert0.pem
 /opt/share/cert-svc/pkcs12/*
+/opt/share/cert-svc/cert-type/*
+/opt/share/cert-svc/tests/orig_c/data/caflag/*
+%if 0%{?tizen_feature_certsvc_ocsp_crl}
+/opt/share/cert-svc/tests/orig_c/data/ocsp/*
+%endif #tizen_feature_certsvc_ocsp_crl
+/opt/share/cert-svc/certs/root_ca*.der
+/opt/share/cert-svc/certs/second_ca*.der
+%endif

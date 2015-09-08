@@ -24,13 +24,13 @@ struct bio_st;
 typedef bio_st BIO;
 
 namespace ValidationCore {
-class Base64Encoder : public DPL::Noncopyable
+class Base64Encoder : public VcoreDPL::Noncopyable
 {
   public:
     class Exception
     {
       public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
+        DECLARE_EXCEPTION_TYPE(VcoreDPL::Exception, Base)
         DECLARE_EXCEPTION_TYPE(Base, InternalError)
         DECLARE_EXCEPTION_TYPE(Base, NotFinalized)
         DECLARE_EXCEPTION_TYPE(Base, AlreadyFinalized)
@@ -48,13 +48,13 @@ class Base64Encoder : public DPL::Noncopyable
     bool m_finalized;
 };
 
-class Base64Decoder : public DPL::Noncopyable
+class Base64Decoder : public VcoreDPL::Noncopyable
 {
   public:
     class Exception
     {
       public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
+        DECLARE_EXCEPTION_TYPE(VcoreDPL::Exception, Base)
         DECLARE_EXCEPTION_TYPE(Base, InternalError)
         DECLARE_EXCEPTION_TYPE(Base, NotFinalized)
         DECLARE_EXCEPTION_TYPE(Base, AlreadyFinalized)

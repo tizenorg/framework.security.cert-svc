@@ -19,7 +19,7 @@
  * @file        SoupMessageSendSync.cpp
  * @brief       Implementation of soup synchronous interface.
  */
-#include "SoupMessageSendSync.h"
+#include <vcore/SoupMessageSendSync.h>
 
 #include <memory>
 #include <functional>

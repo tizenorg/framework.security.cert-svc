@@ -39,7 +39,7 @@ bool whiteCharacter(char a){
 }
 
 TestCRL::TestCRL()
-  : CRL(new CRLCacheDAO)
+  : CRLImpl (new CRLCacheDAO)
 {
     //Add additional lookup dir
     int rv = X509_LOOKUP_add_dir(m_lookup, CRL_LOOKUP_DIR, X509_FILETYPE_PEM);

@@ -1,4 +1,5 @@
 /*
+ *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd All Rights Reserved
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,33 +17,57 @@
 #include <string>
 
 #include <dpl/test/test_runner.h>
-#include <dpl/wrt-dao-ro/global_config.h>
 #include <dpl/log/log.h>
-
+#include <vcore/CryptoHash.h>
 #include <vcore/ReferenceValidator.h>
 #include <vcore/SignatureFinder.h>
 #include <vcore/SignatureReader.h>
 #include <vcore/SignatureValidator.h>
+#include <vcore/WrtSignatureValidator.h>
+#include "TestEnv.h"
+#include <vcore/Base64.h>
+#include <vcore/CertificateConfigReader.h>
+#include <vcore/CertificateIdentifier.h>
+#include <vcore/CertificateLoader.h>
+#include <vcore/RevocationCheckerBase.h>
+
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 #include <vcore/OCSP.h>
 #include <vcore/CachedOCSP.h>
-#include "TestEnv.h"
 #include <vcore/SSLContainers.h>
-#include <vcore/Base64.h>
-#include <vcore/CertificateLoader.h>
 #include <vcore/CRL.h>
 #include <vcore/CachedCRL.h>
-#include <vcore/RevocationCheckerBase.h>
 #include "TestCRL.h"
 #include <vcore/CertificateCacheDAO.h>
+#endif
 
 namespace {
 
 const std::string widget_path =
     "/opt/apps/widget/tests/vcore_widget_uncompressed/";
+const std::string widget_negative_hash_path =
+    "/opt/apps/widget/tests/vcore_widget_uncompressed_negative_hash/";
+const std::string widget_negative_signature_path =
+    "/opt/apps/widget/tests/vcore_widget_uncompressed_negative_signature/";
+const std::string widget_negative_certificate_path =
+    "/opt/apps/widget/tests/vcore_widget_uncompressed_negative_certificate/";
+const std::string widget_partner_path =
+    "/opt/apps/widget/tests/vcore_widget_uncompressed_partner/";
+const std::string widget_partner_operator_path =
+    "/opt/apps/widget/tests/vcore_widget_uncompressed_partner_operator/";
+
+inline const char* GetSignatureXmlSchema()
+{
+    return "/usr/share/wrt-engine/schema.xsd";
+}
+
+
 const std::string keys_path = "/opt/apps/widget/tests/vcore_keys/";
 const std::string widget_store_path = "/opt/apps/widget/tests/vcore_widgets/";
 const std::string cert_store_path = "/opt/apps/widget/tests/vcore_certs/";
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 const std::string crl_URI = "http://localhost/my.crl";
+#endif
 
 const std::string anka_ec_key_type = "urn:oid:1.2.840.10045.3.1.7";
 const std::string anka_ec_public_key =
@@ -64,6 +89,40 @@ const std::string magda_dsa_g =
         "AQrLND1ZGFvzwBpPPXplmPh1ijPx1O2gQEvPvyjR88guWcGqQc0m7dTb6PEvbI/oZ0o91"\
         "k7VEkfthURnNR1WtOLT8dmAuKQfwTQLPwCwUM/QiuWSlCyKLTE4Ev8aOG7ZqWudsKm/td"\
         "n9pUNGtcod1wo1ZtP7PfEJ6rYZGQDOlz8=";
+
+const std::string tizen_partner =
+"MIICozCCAgwCCQD9IBoOxzq2hjANBgkqhkiG9w0BAQUFADCBlTELMAkGA1UEBhMC"
+"S1IxDjAMBgNVBAgMBVN1d29uMQ4wDAYDVQQHDAVTdXdvbjEWMBQGA1UECgwNVGl6"
+"ZW4gVGVzdCBDQTEiMCAGA1UECwwZVGl6ZW4gRGlzdHJpYnV0b3IgVGVzdCBDQTEq"
+"MCgGA1UEAwwhVGl6ZW4gUGFydG5lciBEaXN0cmlidXRvciBSb290IENBMB4XDTEy"
+"MTAyNjA4MTIzMVoXDTIyMTAyNDA4MTIzMVowgZUxCzAJBgNVBAYTAktSMQ4wDAYD"
+"VQQIDAVTdXdvbjEOMAwGA1UEBwwFU3V3b24xFjAUBgNVBAoMDVRpemVuIFRlc3Qg"
+"Q0ExIjAgBgNVBAsMGVRpemVuIERpc3RyaWJ1dG9yIFRlc3QgQ0ExKjAoBgNVBAMM"
+"IVRpemVuIFBhcnRuZXIgRGlzdHJpYnV0b3IgUm9vdCBDQTCBnzANBgkqhkiG9w0B"
+"AQEFAAOBjQAwgYkCgYEAnIBA2qQEaMzGalP0kzvwUxdCC6ybSC/fb+M9iGvt8QXp"
+"ic2yARQB+bIhfbEu1XHwE1jCAGxKd6uT91b4FWr04YwnBPoRX4rBGIYlqo/dg+pS"
+"rGyFjy7vfr0BOdWp2+WPlTe7SOS6bVauncrSoHxX0spiLaU5LU686BKr7YaABV0C"
+"AwEAATANBgkqhkiG9w0BAQUFAAOBgQAX0Tcfmxcs1TUPBdr1U1dx/W/6Y4PcAF7n"
+"DnMrR0ZNRPgeSCiVLax1bkHxcvW74WchdKIb24ZtAsFwyrsmUCRV842YHdfddjo6"
+"xgUu7B8n7hQeV3EADh6ft/lE8nalzAl9tALTxAmLtYvEYA7thvDoKi1k7bN48izL"
+"gS9G4WEAUg==";
+
+const std::string tizen_partner_operator =
+"MIICzDCCAjWgAwIBAgIJAJrv22F9wyp/MA0GCSqGSIb3DQEBBQUAMIGeMQswCQYD"
+"VQQGEwJLUjEOMAwGA1UECAwFU3V3b24xDjAMBgNVBAcMBVN1d29uMRYwFAYDVQQK"
+"DA1UaXplbiBUZXN0IENBMSIwIAYDVQQLDBlUaXplbiBEaXN0cmlidXRvciBUZXN0"
+"IENBMTMwMQYDVQQDDCpUaXplbiBQYXJ0bmVyLU9wZXJhdG9yIERpc3RyaWJ1dG9y"
+"IFJvb3QgQ0EwHhcNMTIxMjEzMDUzOTMyWhcNMjIxMjExMDUzOTMyWjCBnjELMAkG"
+"A1UEBhMCS1IxDjAMBgNVBAgMBVN1d29uMQ4wDAYDVQQHDAVTdXdvbjEWMBQGA1UE"
+"CgwNVGl6ZW4gVGVzdCBDQTEiMCAGA1UECwwZVGl6ZW4gRGlzdHJpYnV0b3IgVGVz"
+"dCBDQTEzMDEGA1UEAwwqVGl6ZW4gUGFydG5lci1PcGVyYXRvciBEaXN0cmlidXRv"
+"ciBSb290IENBMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC9X0Hw0EfAuagg"
+"De9h6Jtvh8Df4fyVbvLm9VNea/iVP3/qTbG8tNqoQ32lu0SwzAZBnjpvpbxzsWs9"
+"pSYo7Ys1fymHlu+gf+kmTGTVscBrAHWkr4O0m33x2FYfy/wmu+IImnRDYDud83rN"
+"tjQmMO6BihN9Lb6kLiEtVIa8ITwdQwIDAQABoxAwDjAMBgNVHRMEBTADAQH/MA0G"
+"CSqGSIb3DQEBBQUAA4GBAHS2M2UnfEsZf80/sT84xTcfASXgpFL/1M5HiAVpR+1O"
+"UwLpLyqHiGQaASuADDeGEfcIqEf8gP1SzvnAZqLx9GchbOrOKRleooVFH7PRxFBS"
+"VWJ5Fq46dJ1mCgTWSkrL6dN5j9hWCzzGfv0Wco+NAf61n9kVbCv7AScIJwQNltOy";
 
 const std::string googleCA =
 "MIICPDCCAaUCEHC65B0Q2Sk0tjjKewPMur8wDQYJKoZIhvcNAQECBQAwXzELMAkG"
@@ -227,17 +286,17 @@ const std::string crlExampleCertificate =
 //    std::string           m_strEnvVar;
 //};
 //
-//class PolicyChanger : public DPL::Event::EventListener<AceUpdateResponseEvent>
+//class PolicyChanger : public VcoreDPL::Event::EventListener<AceUpdateResponseEvent>
 //{
 //  public:
 //    PolicyChanger()
 //    {
-//        DPL::Event::EventDeliverySystem::AddListener<AceUpdateResponseEvent>(this);
+//        VcoreDPL::Event::EventDeliverySystem::AddListener<AceUpdateResponseEvent>(this);
 //    }
 //
 //    ~PolicyChanger()
 //    {
-//        DPL::Event::EventDeliverySystem::RemoveListener<AceUpdateResponseEvent>(this);
+//        VcoreDPL::Event::EventDeliverySystem::RemoveListener<AceUpdateResponseEvent>(this);
 //    }
 //
 //    void OnEventReceived(const AceUpdateResponseEvent& event)
@@ -252,7 +311,7 @@ const std::string crlExampleCertificate =
 //    void updatePolicy(const std::string& path)
 //    {
 //        AceUpdateRequestEvent event(path);
-//        DPL::Event::EventDeliverySystem::Publish(event);
+//        VcoreDPL::Event::EventDeliverySystem::Publish(event);
 //        LoopControl::wait_for_wrt_init();
 //    }
 //};
@@ -265,6 +324,13 @@ using namespace ValidationCore;
 ////////  VALIDATION CORE TEST SUITE  ////////////
 //////////////////////////////////////////////////
 
+/*
+ * test: Class SignatureFinder
+ * description: SignatureFinder should search directory passed as
+ * param of constructor.
+ * expected: Signature finder should put information about 3
+ * signture files in SinatureFileInfoSet.
+ */
 RUNNER_TEST(test01_signature_finder)
 {
     SignatureFileInfoSet signatureSet;
@@ -286,6 +352,13 @@ RUNNER_TEST(test01_signature_finder)
     RUNNER_ASSERT_MSG(22 == first.getFileNumber(), "Wrong signature number.");
 }
 
+/*
+ * test: Class SignatureReader
+ * description: SignatureReader should parse widget digigal signaturesignature
+ * without any errors. Path to signature is passed to constructor.
+ * param of destructor.
+ * expected: SignatureReader should not throw any exception.
+ */
 RUNNER_TEST(test02_signature_reader)
 {
     SignatureFileInfoSet signatureSet;
@@ -300,12 +373,20 @@ RUNNER_TEST(test02_signature_reader)
         SignatureData data(widget_path + iter->getFileName(),
                            iter->getFileNumber());
         SignatureReader xml;
-        xml.initialize(data, WrtDB::GlobalConfig::GetSignatureXmlSchema());
+        xml.initialize(data, GetSignatureXmlSchema());
         xml.read(data);
     }
 }
 
-RUNNER_TEST(test03_signature_validator)
+/*
+ * test: Integration test of SignatureFinder, SignatureReader,
+ * SignatureValidator
+ * description: Directory passed to SignatureFinded constructor should be searched
+ * and 3 signature should be find. All signature should be parsed and verified.
+ * expected: Verificator should DISREGARD author signature and VERIFY
+ * distrubutor signature.
+ */
+RUNNER_TEST(test03t01_wrtsignature_validator)
 {
     SignatureFileInfoSet signatureSet;
     SignatureFinder signatureFinder(widget_path);
@@ -320,10 +401,289 @@ RUNNER_TEST(test03_signature_validator)
         SignatureData data(widget_path + iter->getFileName(),
                            iter->getFileNumber());
         SignatureReader xml;
-        xml.initialize(data, WrtDB::GlobalConfig::GetSignatureXmlSchema());
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        WrtSignatureValidator validator(
+            WrtSignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_DISREGARD ==
+                    validator.check(data, widget_path),
+                "Validation failed");
+        } else {
+            if (data.getSignatureNumber() == 1)
+            {
+                LogError("Distributor1");
+                WrtSignatureValidator::Result temp = validator.check(data, widget_path);
+
+                RUNNER_ASSERT_MSG(
+                    WrtSignatureValidator::SIGNATURE_DISREGARD ==
+                        temp,
+                        "Validation failed");
+
+                LogDebug("test03t01 result: " << temp);
+            }
+            else
+            {
+                LogError("DistributorN");
+                WrtSignatureValidator::Result temp = validator.check(data, widget_path);
+
+                RUNNER_ASSERT_MSG(
+                    WrtSignatureValidator::SIGNATURE_VERIFIED ==
+                        temp,
+                        "Validation failed");
+
+                LogDebug("test03t01 result: " << temp);
+            }
+        }
+    }
+}
+
+RUNNER_TEST(test03t02_wrtsignature_validator_negative_hash_input)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_negative_hash_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_negative_hash_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        WrtSignatureValidator validator(
+            WrtSignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_hash_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_hash_path),
+                "Wrong input file but success..");
+        }
+    }
+}
+
+RUNNER_TEST(test03t03_wrtsignature_validator_negative_signature_input)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_negative_signature_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_negative_signature_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        WrtSignatureValidator validator(
+            WrtSignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_signature_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_signature_path),
+                "Wrong input file but success..");
+        }
+    }
+}
+
+RUNNER_TEST(test03t04_wrtsignature_validator_partner)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_partner_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_partner_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        WrtSignatureValidator validator(
+            WrtSignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_path),
+                "Wrong input file but success..");
+
+            RUNNER_ASSERT_MSG(
+                    data.getVisibilityLevel() == CertStoreId::VIS_PARTNER,
+                    "visibility check failed.");
+        }
+    }
+}
+/* // no partner_operator certificate in kiran emlulator
+RUNNER_TEST(test03t05_wrtsignature_validator_partner_operator)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_partner_operator_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_partner_operator_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        WrtSignatureValidator validator(
+            WrtSignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_operator_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_operator_path),
+                "Wrong input file but success..");
+
+            RUNNER_ASSERT_MSG(
+                    data.getVisibilityLevel() == CertStoreId::VIS_PLATFORM,
+                    "visibility check failed.");
+        }
+    }
+}
+*/
+
+/*
+RUNNER_TEST(test03t04_wrtsignature_validator_negative_certificate_input)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_negative_certificate_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_negative_certificate_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        WrtSignatureValidator validator(
+            WrtSignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_certificate_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_DISREGARD ==
+                    validator.check(data, widget_negative_certificate_path),
+                "Wrong input file but success..");
+        }
+    }
+}
+*/
+
+/*
+ * test: Integration test of SignatureFinder, SignatureReader,
+ * SignatureValidator
+ * description: Directory passed to SignatureFinded constructor should be searched
+ * and 3 signature should be find. All signature should be parsed and verified.
+ * expected: Verificator should DISREGARD author signature and VERIFY
+ * distrubutor signature.
+ */
+RUNNER_TEST(test04t01_signature_validator)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
         xml.read(data);
 
         SignatureValidator validator(
+            SignatureValidator::WAC20,
             false,
             false,
             false);
@@ -335,16 +695,252 @@ RUNNER_TEST(test03_signature_validator)
                     validator.check(data, widget_path),
                 "Validation failed");
         } else {
-            LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_VERIFIED ==
-                    validator.check(data, widget_path),
-                "Validation failed");
+            if (data.getSignatureNumber() == 1)
+            {
+                LogError("Distributor1");
+                SignatureValidator::Result temp = validator.check(data, widget_path);
+
+                RUNNER_ASSERT_MSG(
+                    SignatureValidator::SIGNATURE_DISREGARD ==
+                        temp,
+                        "Validation failed");
+
+                LogDebug("test04t01 result: " << temp);
+            }
+            else
+            {
+                LogError("DistributorN");
+                SignatureValidator::Result temp = validator.check(data, widget_path);
+
+                RUNNER_ASSERT_MSG(
+                    SignatureValidator::SIGNATURE_VERIFIED ==
+                        temp,
+                        "Validation failed");
+
+                LogDebug("test04t01 result: " << temp);
+            }
         }
     }
 }
 
-RUNNER_TEST(test05_signature_reference)
+RUNNER_TEST(test04t02_signature_validator_negative_hash_input)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_negative_hash_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_negative_hash_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        SignatureValidator validator(
+            SignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_hash_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_hash_path),
+                "Wrong input file but success..");
+        }
+    }
+}
+
+RUNNER_TEST(test04t03_signature_validator_negative_signature_input)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_negative_signature_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_negative_signature_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        SignatureValidator validator(
+            SignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_signature_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_INVALID ==
+                    validator.check(data, widget_negative_signature_path),
+                "Wrong input file but success..");
+        }
+    }
+}
+
+RUNNER_TEST(test04t04_signature_validator_partner)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_partner_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_partner_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        SignatureValidator validator(
+            SignatureValidator::TIZEN,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_path),
+                "Wrong input file but success..");
+
+            RUNNER_ASSERT_MSG(
+                    data.getVisibilityLevel() == CertStoreId::VIS_PARTNER,
+                    "visibility check failed.");
+        }
+    }
+}
+/* // no partner_operator certificate in kiran emulator
+RUNNER_TEST(test04t05_signature_validator_partner_operator)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_partner_operator_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_partner_operator_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        SignatureValidator validator(
+            SignatureValidator::TIZEN,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_operator_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_VERIFIED ==
+                    validator.check(data, widget_partner_operator_path),
+                "Wrong input file but success..");
+
+            RUNNER_ASSERT_MSG(
+                data.getVisibilityLevel() == CertStoreId::VIS_PLATFORM,
+                "visibility check failed.");
+        }
+    }
+}
+*/
+
+/*
+RUNNER_TEST(test04t04_signature_validator_negative_certificate_input)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_negative_certificate_path);
+    LogError("Size: " << signatureSet.size());
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+    LogError("Size: " << signatureSet.size());
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_negative_certificate_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        SignatureValidator validator(
+            SignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_DISREGARD ==
+                    validator.check(data, widget_negative_certificate_path),
+                "Wrong input file but success..");
+        } else {
+            LogError("Distributor");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_DISREGARD ==
+                    validator.check(data, widget_negative_certificate_path),
+                "Wrong input file but success..");
+        }
+    }
+}
+*/
+
+/*
+ * test: Integration test of SignatureFinder, SignatureReader,
+ * SignatureValidator, ReferenceValidator
+ * description: As above but this test also checks reference from signatures.
+ * expected: All reference checks should return NO_ERROR.
+ */
+RUNNER_TEST(test05t01_signature_reference)
 {
     SignatureFileInfoSet signatureSet;
     SignatureFinder signatureFinder(widget_path);
@@ -358,14 +954,39 @@ RUNNER_TEST(test05_signature_reference)
         SignatureData data(widget_path + iter->getFileName(),
                            iter->getFileNumber());
         SignatureReader xml;
-        xml.initialize(data, WrtDB::GlobalConfig::GetSignatureXmlSchema());
+        xml.initialize(data, GetSignatureXmlSchema());
         xml.read(data);
 
-        SignatureValidator sval(
+        WrtSignatureValidator sval(
+            WrtSignatureValidator::WAC20,
             false,
             false,
             false);
-        sval.check(data, widget_path);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                WrtSignatureValidator::SIGNATURE_DISREGARD ==
+                    sval.check(data, widget_path),
+                "Validation failed");
+        } else {
+            if (data.getSignatureNumber() == 1)
+            {
+                LogError("Distributor1");
+                RUNNER_ASSERT_MSG(
+                    WrtSignatureValidator::SIGNATURE_DISREGARD ==
+                        sval.check(data, widget_path),
+                        "Validation failed");
+            }
+            else
+            {
+                LogError("DistributorN");
+                RUNNER_ASSERT_MSG(
+                    WrtSignatureValidator::SIGNATURE_VERIFIED ==
+                        sval.check(data, widget_path),
+                        "Validation failed");
+            }
+        }
 
         ReferenceValidator val(widget_path);
         RUNNER_ASSERT(
@@ -373,6 +994,178 @@ RUNNER_TEST(test05_signature_reference)
     }
 }
 
+/*
+ * test: ReferenceValidator::checkReference
+ * description: Simple test. File "encoding test.empty" exists.
+ * expected: checkReference should return NO_ERROR.
+ */
+RUNNER_TEST(test05t02_signature_reference_encoding_dummy)
+{
+    ReferenceSet referenceSet;
+    SignatureData data;
+    ReferenceValidator val("/opt/apps/widget/tests/reference");
+    referenceSet.insert("encoding test.empty");
+    data.setReference(referenceSet);
+
+    RUNNER_ASSERT(
+        ReferenceValidator::NO_ERROR == val.checkReferences(data));
+}
+
+/*
+ * test: ReferenceValidator::checkReference
+ * description: Negative test. File "encoding test" does not exists.
+ * expected: checkReference should return ERROR_REFERENCE_NOT_FOUND
+ */
+RUNNER_TEST(test05t03_signature_reference_encoding_negative)
+{
+    ReferenceSet referenceSet;
+    SignatureData data;
+    ReferenceValidator val("/opt/apps/widget/tests/reference");
+    referenceSet.insert("encoding test");
+    data.setReference(referenceSet);
+
+    RUNNER_ASSERT(
+        ReferenceValidator::ERROR_REFERENCE_NOT_FOUND == val.checkReferences(data));
+}
+
+/*
+ * test: ReferenceValidator::checkReference, ReferenceValidator::decodeProcent
+ * description: File "encoding test.empty" exists. Name set in referenceSet must
+ * be encoded first by decodeProcent function.
+ * expected: checkReference should return NO_ERROR
+ */
+RUNNER_TEST(test05t04_signature_reference_encoding_space)
+{
+    ReferenceSet referenceSet;
+    SignatureData data;
+    ReferenceValidator val("/opt/apps/widget/tests/reference");
+    referenceSet.insert("encoding%20test.empty");
+    data.setReference(referenceSet);
+
+    RUNNER_ASSERT(
+        ReferenceValidator::NO_ERROR == val.checkReferences(data));
+}
+
+/*
+ * test: ReferenceValidator::checkReference, ReferenceValidator::decodeProcent
+ * description: Negative test. File "encoding test" does not exists. Name set in
+ * referenceSet must be encoded first by decodeProcent function.
+ * expected: checkReference should return ERROR_REFERENCE_NOT_FOUND
+ */
+RUNNER_TEST(test05t05_signature_reference_encoding_space_negative)
+{
+    ReferenceSet referenceSet;
+    SignatureData data;
+    ReferenceValidator val("/opt/apps/widget/tests/reference");
+    referenceSet.insert("encoding%20test");
+    data.setReference(referenceSet);
+
+    RUNNER_ASSERT(
+        ReferenceValidator::ERROR_REFERENCE_NOT_FOUND == val.checkReferences(data));
+}
+
+/*
+ * test: ReferenceValidator::checkReference, ReferenceValidator::decodeProcent
+ * description: File "encoding test.empty" exists. Name set in
+ * referenceSet must be encoded first by decodeProcent function.
+ * expected: checkReference should return NO_ERROR
+ */
+RUNNER_TEST(test05t06_signature_reference_encoding)
+{
+    ReferenceSet referenceSet;
+    SignatureData data;
+    ReferenceValidator val("/opt/apps/widget/tests/reference");
+    referenceSet.insert("e%6Ec%6Fding%20te%73%74.e%6d%70ty");
+    data.setReference(referenceSet);
+
+    RUNNER_ASSERT(
+        ReferenceValidator::NO_ERROR == val.checkReferences(data));
+}
+
+/*
+ * test: ReferenceValidator::checkReference, ReferenceValidator::decodeProcent
+ * description: Negative test. "%%" is illegal combination of char. decodeProcent
+ * should throw exception.
+ * expected: checkReference should return ERROR_DECODING_URL
+ */
+RUNNER_TEST(test05t07_signature_reference_encoding_negative)
+{
+    ReferenceSet referenceSet;
+    SignatureData data;
+    ReferenceValidator val("/opt/apps/widget/tests/reference");
+    referenceSet.insert("e%6Ec%6Fding%%0test%2ete%73%74");
+    data.setReference(referenceSet);
+
+    RUNNER_ASSERT(
+        ReferenceValidator::ERROR_DECODING_URL == val.checkReferences(data));
+}
+
+/*
+ * test: Integration test of SignatureFinder, SignatureReader,
+ * SignatureValidator, ReferenceValidator
+ * description: As above but this test also checks reference from signatures.
+ * expected: All reference checks should return NO_ERROR.
+ */
+RUNNER_TEST(test05t08_signature_reference)
+{
+    SignatureFileInfoSet signatureSet;
+    SignatureFinder signatureFinder(widget_path);
+    RUNNER_ASSERT_MSG(
+        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
+        "SignatureFinder failed");
+
+    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
+
+    for (; iter != signatureSet.rend(); ++iter) {
+        SignatureData data(widget_path + iter->getFileName(),
+                           iter->getFileNumber());
+        SignatureReader xml;
+        xml.initialize(data, GetSignatureXmlSchema());
+        xml.read(data);
+
+        SignatureValidator sval(
+            SignatureValidator::WAC20,
+            false,
+            false,
+            false);
+
+        if (data.isAuthorSignature()) {
+            LogError("Author");
+            RUNNER_ASSERT_MSG(
+                SignatureValidator::SIGNATURE_DISREGARD ==
+                    sval.check(data, widget_path),
+                "Validation failed");
+        } else {
+            if (data.getSignatureNumber() == 1)
+            {
+                LogError("Distributor1");
+                RUNNER_ASSERT_MSG(
+                    SignatureValidator::SIGNATURE_DISREGARD ==
+                        sval.check(data, widget_path),
+                        "Validation failed");
+            }
+            else
+            {
+                LogError("DistributorN");
+                RUNNER_ASSERT_MSG(
+                    SignatureValidator::SIGNATURE_VERIFIED ==
+                        sval.check(data, widget_path),
+                        "Validation failed");
+            }
+        }
+
+        ReferenceValidator val(widget_path);
+        RUNNER_ASSERT(
+            ReferenceValidator::NO_ERROR == val.checkReferences(data));
+    }
+}
+
+/*
+ * test: class Base64Encoder and Base64Decoder
+ * description: This test checks implementation of base64 decoder/encoder
+ * algorithm implemented in Base64 classes. It uses printable characters.
+ * expected: Encoded string should be equal to sample values.
+ */
 RUNNER_TEST(test07t01_base64)
 {
     std::string strraw = "1234567890qwertyuiop[]asdfghjkl;'zxcvbnm,.";
@@ -392,6 +1185,12 @@ RUNNER_TEST(test07t01_base64)
     RUNNER_ASSERT_MSG(strraw == decoder.get(), "Error in Base64Decoder.");
 }
 
+/*
+ * test: class Base64Encoder and Base64Decoder
+ * description: This test checks implementation of base64 decoder/encoder
+ * algorithm. During tests it uses binary data.
+ * expected: Encoded string should be equal to sample values.
+ */
 RUNNER_TEST(test07t02_base64)
 {
     const size_t MAX = 40;
@@ -417,6 +1216,11 @@ RUNNER_TEST(test07t02_base64)
     RUNNER_ASSERT_MSG(raw == decoder.get(), "Error in Base64 conversion.");
 }
 
+/*
+ * test: class Base64Decoder
+ * description: Negative tests. This test will pass invalid string to decoder.
+ * expected: Function finalize should fail and return false.
+ */
 RUNNER_TEST(test07t03_base64)
 {
     std::string invalid = "1234)";
@@ -427,6 +1231,12 @@ RUNNER_TEST(test07t03_base64)
     RUNNER_ASSERT(false == decoder.finalize());
 }
 
+/*
+ * test: class Base64Decoder
+ * description: Negative tests. You are not allowed to call get function before
+ * finalize.
+ * expected: Function get should throw Base64Decoder::Exception::NotFinalized.
+ */
 RUNNER_TEST(test07t04_base64)
 {
     std::string invalid = "12234";
@@ -444,29 +1254,35 @@ RUNNER_TEST(test07t04_base64)
     RUNNER_ASSERT_MSG(exception, "Base64Decoder does not throw error.");
 }
 
+/*
+ * test: class Certificate
+ * description: Certificate should parse data passed to object constructor.
+ * expected: Getters should be able to return certificate information.
+ */
 RUNNER_TEST(test08t01_Certificate)
 {
     Certificate cert(certVerisign, Certificate::FORM_BASE64);
-
-    DPL::OptionalString result;
+    std::string result;
 
     result = cert.getCommonName(Certificate::FIELD_SUBJECT);
-    RUNNER_ASSERT_MSG(!result.IsNull(), "No common name");
-    RUNNER_ASSERT_MSG(*result == DPL::FromUTF8String("www.verisign.com"),
-                      "CommonName mismatch");
+    RUNNER_ASSERT_MSG(!result.empty(), "No common name");
+    RUNNER_ASSERT_MSG(!result.compare("www.verisign.com"), "CommonName mismatch");
 
     result = cert.getCommonName(Certificate::FIELD_ISSUER);
-    RUNNER_ASSERT_MSG(!result.IsNull(), "No common name");
-    RUNNER_ASSERT_MSG(result == DPL::FromUTF8String(
-            "VeriSign Class 3 Extended Validation SSL SGC CA"),
+    RUNNER_ASSERT_MSG(!result.empty(), "No common name");
+    RUNNER_ASSERT_MSG(!result.compare("VeriSign Class 3 Extended Validation SSL SGC CA"),
             "CommonName mismatch");
 
     result = cert.getCountryName();
-    RUNNER_ASSERT_MSG(!result.IsNull(), "No country");
-    RUNNER_ASSERT_MSG(*result == DPL::FromUTF8String("US"),
-                      "Country mismatch");
+    RUNNER_ASSERT_MSG(!result.empty(), "No country");
+    RUNNER_ASSERT_MSG(!result.compare("US"), "Country mismatch");
 }
 
+/*
+ * test: Certificate::getFingerprint
+ * description: Certificate should parse data passed to object constructor.
+ * expected: Function fingerprint should return valid fingerprint.
+ */
 RUNNER_TEST(test08t02_Certificate)
 {
     Certificate cert(certVerisign, Certificate::FORM_BASE64);
@@ -486,6 +1302,12 @@ RUNNER_TEST(test08t02_Certificate)
     }
 }
 
+/*
+ * test: Certificate::getAlternativeNameDNS
+ * description: Certificate should parse data passed to object constructor.
+ * expected: Function getAlternativeNameDNS should return list of
+ * alternativeNames hardcoded in certificate.
+ */
 RUNNER_TEST(test08t03_Certificate)
 {
     Certificate cert(certVerisign, Certificate::FORM_BASE64);
@@ -494,14 +1316,38 @@ RUNNER_TEST(test08t03_Certificate)
 
     RUNNER_ASSERT(nameSet.size() == 8);
 
-    DPL::String str = DPL::FromUTF8String("verisign.com");
+    std::string str("verisign.com");
     RUNNER_ASSERT(nameSet.find(str) != nameSet.end());
 
-    str = DPL::FromUTF8String("fake.com");
+    str = std::string("fake.com");
     RUNNER_ASSERT(nameSet.find(str) == nameSet.end());
 
 }
 
+/*
+ * test: Certificate::isCA
+ * description: Certificate should parse data passed to object constructor.
+ * expected: 1st and 2nd certificate should be identified as CA.
+ */
+RUNNER_TEST(test08t04_Certificate_isCA)
+{
+    Certificate cert1(googleCA, Certificate::FORM_BASE64);
+    RUNNER_ASSERT(cert1.isCA() > 0);
+
+    Certificate cert2(google2nd, Certificate::FORM_BASE64);
+    RUNNER_ASSERT(cert2.isCA() > 0);
+
+    Certificate cert3(google3rd, Certificate::FORM_BASE64);
+    RUNNER_ASSERT(cert3.isCA() == 0);
+}
+
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+/*
+ * test: class CertificateCollection
+ * description: It's not allowed to call function isChain before funciton sort.
+ * expected: Function isChain should throw exception WrongUsage because
+ * function sort was not called before.
+ */
 RUNNER_TEST(test09t01_CertificateCollection)
 {
     CertificateList list;
@@ -541,14 +1387,17 @@ RUNNER_TEST(test09t01_CertificateCollection)
 
     list = collection.getChain();
 
-    RUNNER_ASSERT(
-        DPL::ToUTF8String(*(list.front().Get()->getCommonName())) ==
-            "mail.google.com");
-    RUNNER_ASSERT(
-        DPL::ToUTF8String(*(list.back().Get()->getOrganizationName())) ==
-            "VeriSign, Inc.");
+    RUNNER_ASSERT(!list.front().get()->getCommonName().compare("mail.google.com"));
+    RUNNER_ASSERT(!list.back().get()->getOrganizationName().compare("VeriSign, Inc."));
 }
 
+/*
+ * test: class OCSP, VerificationStatusSet
+ * description: OCSP should check certificate chain. One of the certificate
+ * is GOOD and one is broken.
+ * expected: Status from OCSP check should contain status GOOD and status
+ * VERIFICATION_ERROR.
+ */
 RUNNER_TEST(test51t01_ocsp_validation_negative)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -610,6 +1459,11 @@ RUNNER_TEST(test51t01_ocsp_validation_negative)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP, VerificationStatusSet
+ * description: OCSP should check certificate chain. All certificates are GOOD.
+ * expected: Status from OCSP check should contain only status GOOD.
+ */
 RUNNER_TEST(test51t02_ocsp_validation_positive)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -664,6 +1518,11 @@ RUNNER_TEST(test51t02_ocsp_validation_positive)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP, VerificationStatusSet
+ * description: OCSP should check end entity certificate.
+ * expected: Status from OCSP check should contain only status GOOD.
+ */
 RUNNER_TEST(test51t04_ocsp_request)
 {
     CertificateList lTrustedCerts;
@@ -677,7 +1536,7 @@ RUNNER_TEST(test51t04_ocsp_request)
 
     CertificateCollection chain;
     chain.load(lTrustedCerts);
-    chain.sort();
+    RUNNER_ASSERT(chain.sort());
 
     OCSP ocsp;
     ocsp.setDigestAlgorithmForCertId(OCSP::SHA1);
@@ -688,6 +1547,12 @@ RUNNER_TEST(test51t04_ocsp_request)
     RUNNER_ASSERT(VERIFICATION_STATUS_GOOD == result);
 }
 
+/*
+ * test: class OCSP, VerificationStatusSet, CertificateCachedDao
+ * description: Call OCSP twice. Result of second call should be extracted
+ * from cache.
+ * expected: Both results should be equal.
+ */
 RUNNER_TEST(test51t05_cached_ocsp_validation_negative)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -747,6 +1612,12 @@ RUNNER_TEST(test51t05_cached_ocsp_validation_negative)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP, VerificationStatusSet, CertificateCachedDao
+ * description: Call OCSP twice. Result of second call should be extracted
+ * from cache.
+ * expected: Both results should be equal.
+ */
 RUNNER_TEST(test51t06_cached_ocsp_validation_positive)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -801,6 +1672,11 @@ RUNNER_TEST(test51t06_cached_ocsp_validation_positive)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL
+ * description: N/A
+ * expected: checkCertificateChain should return invalid status.
+ */
 RUNNER_TEST(test61_crl_test_revocation_no_crl)
 {
     //Clear CRL cache so there is no CRL for those certificates URI.
@@ -838,6 +1714,11 @@ RUNNER_TEST(test61_crl_test_revocation_no_crl)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL
+ * description: N/A
+ * expected: checkCertificateChain should return valid and revoked.
+ */
 RUNNER_TEST(test62_crl_test_revocation_set1)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -876,6 +1757,11 @@ RUNNER_TEST(test62_crl_test_revocation_set1)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL
+ * description: N/A
+ * expected: checkCertificateChain should return valid and revoked.
+ */
 RUNNER_TEST(test63_crl_test_revocation_set1)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -914,6 +1800,11 @@ RUNNER_TEST(test63_crl_test_revocation_set1)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL
+ * description: N/A
+ * expected: checkCertificateChain should return valid and revoked.
+ */
 RUNNER_TEST(test64_crl_test_revocation_set2)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -952,6 +1843,11 @@ RUNNER_TEST(test64_crl_test_revocation_set2)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL
+ * description: N/A
+ * expected: checkCertificateChain should return valid and revoked.
+ */
 RUNNER_TEST(test65_crl_test_revocation_set2)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -990,6 +1886,11 @@ RUNNER_TEST(test65_crl_test_revocation_set2)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL::updateList
+ * description: N/A
+ * expected: checkCertificateChain should return valid and revoked.
+ */
 RUNNER_TEST(test66_crl_update_expired_lists)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -997,7 +1898,8 @@ RUNNER_TEST(test66_crl_update_expired_lists)
     CertificatePtr rootCA(new Certificate(googleCA, Certificate::FORM_BASE64));
 
     CertificateLoader loader;
-    loader.loadCertificateFromRawData(google2nd);
+    RUNNER_ASSERT(loader.loadCertificateFromRawData(google2nd) ==
+                  CertificateLoader::NO_ERROR);
     RUNNER_ASSERT(!!loader.getCertificatePtr());
     TestCRL crl;
     crl.addToStore(rootCA);
@@ -1009,6 +1911,11 @@ RUNNER_TEST(test66_crl_update_expired_lists)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL::updateList
+ * description: N/A
+ * expected: checkCertificateChain should return valid and revoked.
+ */
 RUNNER_TEST(test67_crl_update_lists_on_demand)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1016,7 +1923,8 @@ RUNNER_TEST(test67_crl_update_lists_on_demand)
     CertificatePtr rootCA(new Certificate(googleCA, Certificate::FORM_BASE64));
 
     CertificateLoader loader;
-    loader.loadCertificateFromRawData(google2nd);
+    RUNNER_ASSERT(loader.loadCertificateFromRawData(google2nd) ==
+                  CertificateLoader::NO_ERROR);
     RUNNER_ASSERT(!!loader.getCertificatePtr());
     TestCRL crl;
     crl.addToStore(rootCA);
@@ -1028,6 +1936,11 @@ RUNNER_TEST(test67_crl_update_lists_on_demand)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL::updateList
+ * description: N/A
+ * expected: N/A
+ */
 RUNNER_TEST(test68_cached_crl_test_positive)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1082,6 +1995,11 @@ RUNNER_TEST(test68_cached_crl_test_positive)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class CRL::updateList
+ * description: N/A
+ * expected: N/A
+ */
 RUNNER_TEST(test69_cached_crl_test_negative)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1135,6 +2053,11 @@ RUNNER_TEST(test69_cached_crl_test_negative)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP
+ * description: All certificates are valid.
+ * expected: Only status VERIFICATION_STATUS_GOOD should be set.
+ */
 RUNNER_TEST(test70_ocsp_local_validation_positive)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1181,6 +2104,11 @@ RUNNER_TEST(test70_ocsp_local_validation_positive)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP
+ * description: All certificates are valid.
+ * expected: Only status VERIFICATION_STATUS_GOOD should be set.
+ */
 RUNNER_TEST(test71_ocsp_local_validation_positive)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1227,6 +2155,11 @@ RUNNER_TEST(test71_ocsp_local_validation_positive)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP
+ * description: Second certificate is revoked. Root CA certificate wont be checked.
+ * expected: Only status VERIFICATION_STATUS_REVOKED should be set.
+ */
 RUNNER_TEST(test72_ocsp_local_validation_revoked)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1277,6 +2210,12 @@ RUNNER_TEST(test72_ocsp_local_validation_revoked)
     CertificateCacheDAO::clearCertificateCache();
 }
 
+/*
+ * test: class OCSP
+ * description: N/A
+ * expected: Status VERIFICATION_STATUS_GOOD and VERIFICATION_STATUS_VERIFICATION_ERROR
+ * should be set.
+ */
 RUNNER_TEST(test73_ocsp_local_validation_error_unknown_cert)
 {
     CertificateCacheDAO::clearCertificateCache();
@@ -1334,4 +2273,321 @@ RUNNER_TEST(test73_ocsp_local_validation_error_unknown_cert)
 
     CertificateCacheDAO::clearCertificateCache();
 }
+#endif
 
+#define CRYPTO_HASH_TEST(text,expected,FUN)                    \
+    do {                                                       \
+        ValidationCore::Crypto::Hash::Base *crypto;            \
+        crypto = new ValidationCore::Crypto::Hash::FUN();      \
+        std::string input = text;                              \
+        crypto->Append(text);                                  \
+        crypto->Finish();                                      \
+        std::string result = crypto->ToBase64String();         \
+        RUNNER_ASSERT_MSG(result == expected,                  \
+            "Hash function failed");                           \
+    } while(0)
+
+/*
+ * test: class ValidationCore::Crypto::Hash::MD4
+ * description: Test implementation of MD4 hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test80_crypto_md4)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "Rj5V34qqMQmHh2bn3Cb/vQ==",
+        MD4);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::MD5
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test81_crypto_md5)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "4y2iI6QtFC7+0xurBOfcsg==",
+        MD5);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test82_crypto_sha)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "v7w8XNvzQkZPoID+bbdrLwI6zPA=",
+        SHA);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA1
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test83_crypto_sha1)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "Srydq14dzpuLn+xlkGz7ZyFLe1w=",
+        SHA1);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA224
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test84_crypto_sha224)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "Ss2MKa2Mxrf0/hrl8bf0fOSz/e5nQv4J/yX6ig==",
+        SHA224);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA256
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test85_crypto_sha256)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "Bja/IuUJHLPlHYYB2hBcuuOlRWPy1RdF6gzL0VWxeps=",
+        SHA256);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA384
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test86_crypto_sha384)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "5RjtzCnGAt+P6J8h32Dzrmka+5i5MMvDRVz+s9jA7TW508sUZOnKliliad5nUJrj",
+        SHA384);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA512
+ * description: Test implementation of hash algorithm
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test87_crypto_sha512)
+{
+    CRYPTO_HASH_TEST("Hi, my name is Bart.",
+        "LxemzcQNf5erjA4a6PnTXfL+putB3uElitOjc5QCQ9Mg4ZuxTpre8VIBAviwRcTnui2Y0/Yg7cB40OG3XJMfbA==",
+        SHA512);
+}
+
+/*
+ * test: class ValidationCore::Crypto::Hash::SHA1
+ * description: This example was implemented to show how to count SHA1 value from certificate.
+ * expected: Value counted by algorithm should be eqal to value encoded in test.
+ */
+RUNNER_TEST(test88_crypto_sha1_certificate)
+{
+    Certificate cert(certVerisign, Certificate::FORM_BASE64);
+
+    ValidationCore::Crypto::Hash::SHA1 sha1;
+    sha1.Append(cert.getDER());
+    sha1.Finish();
+    std::string result = sha1.ToBase64String();
+
+    RUNNER_ASSERT_MSG(result == "uXIe1UntvzGE2CcM/gMRGd/CKwo=",
+        "Certificate hash does not match.");
+}
+
+/*
+ * test: CertificateIdentifier::find(Fingerprint)
+ * description: Check implementation of fingerprint_list.
+ * expected: Google CA certificate was added to TIZEN_MEMBER group
+ * and ORANGE_LEGACY. Both domain should be found.
+ */
+/*
+RUNNER_TEST(test90_certificate_identifier_find_fingerprint)
+{
+    CertificateIdentifier certIdent;
+    CertificateConfigReader reader;
+    reader.initialize(
+        "/opt/apps/widget/tests/vcore_config/fin_list.xml",
+        "/opt/apps/widget/tests/vcore_config/fin_list.xsd");
+    reader.read(certIdent);
+
+    Certificate cert(googleCA, Certificate::FORM_BASE64);
+
+    CertStoreId::Set domain =
+        certIdent.find(cert.getFingerprint(Certificate::FINGERPRINT_SHA1));
+
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_PUBLISHER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::DEVELOPER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_ROOT));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_MEMBER));
+    RUNNER_ASSERT(domain.contains(CertStoreId::TIZEN_MEMBER));
+    RUNNER_ASSERT(domain.contains(CertStoreId::ORANGE_LEGACY));
+}
+*/
+
+/*
+ * test: CertificateIdentifier::find(CertificatePtr)
+ * description: Check implementation of fingerprint_list.
+ * expected: Google CA certificate was added to TIZEN_MEMBER group
+ * and ORANGE_LEGACY. Both domain should be found.
+ */
+/*
+RUNNER_TEST(test91_certificate_identifier_find_cert)
+{
+    CertificateIdentifier certIdent;
+    CertificateConfigReader reader;
+    reader.initialize(
+        "/opt/apps/widget/tests/vcore_config/fin_list.xml",
+        "/opt/apps/widget/tests/vcore_config/fin_list.xsd");
+    reader.read(certIdent);
+
+    CertificatePtr cert(new Certificate(googleCA, Certificate::FORM_BASE64));
+
+    CertStoreId::Set domain = certIdent.find(cert);
+
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_PUBLISHER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::DEVELOPER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_ROOT));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_MEMBER));
+    RUNNER_ASSERT(domain.contains(CertStoreId::TIZEN_MEMBER));
+    RUNNER_ASSERT(domain.contains(CertStoreId::ORANGE_LEGACY));
+}
+*/
+
+/*
+ * test: CertificateIdentifier::find(Fingerprint)
+ * description: Check implementation of fingerprint_list.
+ * expected: google2nd certificate was not added to any group so
+ * no domain should be found.
+ */
+/*
+RUNNER_TEST(test92_certificate_identifier_negative)
+{
+    CertificateIdentifier certIdent;
+    CertificateConfigReader reader;
+    reader.initialize(
+        "/opt/apps/widget/tests/vcore_config/fin_list.xml",
+        "/opt/apps/widget/tests/vcore_config/fin_list.xsd");
+    reader.read(certIdent);
+
+    Certificate cert(google2nd, Certificate::FORM_BASE64);
+
+    CertStoreId::Set domain =
+        certIdent.find(cert.getFingerprint(Certificate::FINGERPRINT_SHA1));
+
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_PUBLISHER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::DEVELOPER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_ROOT));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_MEMBER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::TIZEN_MEMBER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::ORANGE_LEGACY));
+}
+*/
+/*
+ * test: CertificateIdentifier::find(Fingerprint)
+ * description: Check implementation of fingerprint_list.
+ * expected: Google CA certificate was added to TIZEN_MEMBER group
+ * and ORANGE_LEGACY. Both domain should be found.
+ */
+/*
+RUNNER_TEST(test93_certificate_identifier_find_fingerprint)
+{
+    CertificateIdentifier certIdent;
+    CertificateConfigReader reader;
+    reader.initialize(
+        "/opt/apps/widget/tests/vcore_config/fin_list.xml",
+        "/opt/apps/widget/tests/vcore_config/fin_list.xsd");
+    reader.read(certIdent);
+
+    Certificate cert(googleCA, Certificate::FORM_BASE64);
+
+    CertStoreId::Set visibilityLevel =
+        certIdent.find(cert.getFingerprint(Certificate::FINGERPRINT_SHA1));
+
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::WAC_PUBLISHER));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::DEVELOPER));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::WAC_ROOT));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::WAC_MEMBER));
+    RUNNER_ASSERT(visibilityLevel.contains(CertStoreId::TIZEN_MEMBER));
+    RUNNER_ASSERT(visibilityLevel.contains(CertStoreId::ORANGE_LEGACY));
+
+    RUNNER_ASSERT(visibilityLevel.contains(CertStoreId::VIS_PUBLIC));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::VIS_PARTNER));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::VIS_PARTNER_OPERATOR));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::VIS_PARTNER_MANUFACTURER));
+}
+*/
+
+/*
+ * test: CertificateIdentifier::find(CertificatePtr)
+ * description: Check implementation of fingerprint_list.
+ * expected: Google CA certificate was added to TIZEN_MEMBER group
+ * and ORANGE_LEGACY. Both domain should be found.
+ */
+/*
+RUNNER_TEST(test94_certificate_identifier_find_cert)
+{
+    CertificateIdentifier certIdent;
+    CertificateConfigReader reader;
+    reader.initialize(
+        "/opt/apps/widget/tests/vcore_config/fin_list.xml",
+        "/opt/apps/widget/tests/vcore_config/fin_list.xsd");
+    reader.read(certIdent);
+
+    CertificatePtr cert(new Certificate(googleCA, Certificate::FORM_BASE64));
+
+    CertStoreId::Set visibilityLevel = certIdent.find(cert);
+
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::WAC_PUBLISHER));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::DEVELOPER));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::WAC_ROOT));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::WAC_MEMBER));
+    RUNNER_ASSERT(visibilityLevel.contains(CertStoreId::TIZEN_MEMBER));
+    RUNNER_ASSERT(visibilityLevel.contains(CertStoreId::ORANGE_LEGACY));
+
+    RUNNER_ASSERT(visibilityLevel.contains(CertStoreId::VIS_PUBLIC));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::VIS_PARTNER));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::VIS_PARTNER_OPERATOR));
+    RUNNER_ASSERT(!visibilityLevel.contains(CertStoreId::VIS_PARTNER_MANUFACTURER));
+}
+*/
+
+/*
+ * test: CertificateIdentifier::find(Fingerprint)
+ * description: Check implementation of fingerprint_list.
+ * expected: google2nd certificate was not added to any group so
+ * no domain should be found.
+ */
+/*
+RUNNER_TEST(test95_certificate_identifier_negative)
+{
+    CertificateIdentifier certIdent;
+    CertificateConfigReader reader;
+    reader.initialize(
+        "/opt/apps/widget/tests/vcore_config/fin_list.xml",
+        "/opt/apps/widget/tests/vcore_config/fin_list.xsd");
+    reader.read(certIdent);
+
+    Certificate cert(google2nd, Certificate::FORM_BASE64);
+
+    CertStoreId::Set domain =
+        certIdent.find(cert.getFingerprint(Certificate::FINGERPRINT_SHA1));
+
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_PUBLISHER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::DEVELOPER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_ROOT));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::WAC_MEMBER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::TIZEN_MEMBER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::ORANGE_LEGACY));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::VIS_PUBLIC));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::VIS_PARTNER));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::VIS_PARTNER_OPERATOR));
+    RUNNER_ASSERT(!domain.contains(CertStoreId::VIS_PARTNER_MANUFACTURER));
+}
+*/

@@ -19,14 +19,14 @@
  * @file        CertificateVerifier.h
  * @brief       This class integrates OCSP and CRL into one module.
  */
-#ifndef _SRC_VALIDATION_CORE_CERTIFICATE_VERIFIER_H_
-#define _SRC_VALIDATION_CORE_CERTIFICATE_VERIFIER_H_
+#ifndef _VALIDATION_CORE_CERTIFICATE_VERIFIER_H_
+#define _VALIDATION_CORE_CERTIFICATE_VERIFIER_H_
 
-#include "Certificate.h"
-#include "CertificateCollection.h"
-#include "CachedCRL.h"
-#include "CachedOCSP.h"
-#include "VerificationStatus.h"
+#include <vcore/Certificate.h>
+#include <vcore/CertificateCollection.h>
+#include <vcore/CachedCRL.h>
+#include <vcore/CachedOCSP.h>
+#include <vcore/VerificationStatus.h>
 
 namespace ValidationCore {
 
@@ -81,5 +81,5 @@ class CertificateVerifier {
 
 } // namespace ValidationCore
 
-#endif // _SRC_VALIDATION_CORE_CERTIFICATE_VERIFIER_H_
+#endif // _VALIDATION_CORE_CERTIFICATE_VERIFIER_H_
 

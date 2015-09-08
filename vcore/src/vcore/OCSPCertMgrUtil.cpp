@@ -19,11 +19,14 @@
  * @brief
  */
 
-#include "OCSPCertMgrUtil.h"
-#include "SSLContainers.h"
+#include <vcore/OCSPCertMgrUtil.h>
+#include <vcore/SSLContainers.h>
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+#include <openssl/ocsp.h>
+#endif
 
 #include <openssl/pem.h>
-#include <openssl/ocsp.h>
+#include <openssl/x509.h>
 #include <dpl/log/log.h>
 #include <dpl/scoped_resource.h>
 #include <string.h>
@@ -69,7 +72,7 @@ void getCertFromStore(X509_NAME *subject,
         return;
     }
 
-    typedef DPL::ScopedResource<ContextDeleter> ScopedContext;
+    typedef VcoreDPL::ScopedResource<ContextDeleter> ScopedContext;
 
     int result;
     char buffer[MAX_BUF];
@@ -146,7 +149,7 @@ void getCertFromStore(X509_NAME *subject,
 
 CertificatePtr getParentFromStore(const CertificatePtr &certificate)
 {
-    Assert(certificate.Get());
+    Assert(certificate.get());
     X509* rawPtr = certificate->getX509();
 
     /* TODO Add getIssuerName function to Certificate.h */
@@ -158,7 +161,6 @@ CertificatePtr getParentFromStore(const CertificatePtr &certificate)
     if (rawTemp == NULL) {
         return CertificatePtr();
     }
-
     SSLSmartContainer<X509> scope(rawTemp);
     return CertificatePtr(new Certificate(rawTemp));
 }
@@ -171,7 +173,7 @@ CertificateList completeCertificateChain(const CertificateList &certificateList)
         return result;
     }
     CertificatePtr parent = getParentFromStore(last);
-    if (parent.Get()) {
+    if (parent.get()) {
         result.push_back(parent);
     }
     return result;

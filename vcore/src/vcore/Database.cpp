@@ -19,6 +19,6 @@
  * @version 1.0
  * @brief   This file contains the definition of webruntime database
  */
-#include "Database.h"
+#include <vcore/Database.h>
 
-DPL::Mutex g_vcoreDbQueriesMutex;
+VcoreDPL::Mutex g_vcoreDbQueriesMutex;

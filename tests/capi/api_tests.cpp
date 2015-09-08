@@ -33,7 +33,7 @@ int main (int argc, char *argv[])
 //    g_type_init();
 //    g_thread_init(NULL);
     certsvc_instance_new(&vinstance);
-    int status = DPL::Test::TestRunnerSingleton::Instance().ExecTestRunner(argc, argv);
+    int status = VcoreDPL::Test::TestRunnerSingleton::Instance().ExecTestRunner(argc, argv);
     certsvc_instance_free(vinstance);
     return status;
 }

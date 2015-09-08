@@ -23,7 +23,7 @@
 #include <dpl/log/log.h>
 #include <dpl/scoped_free.h>
 
-#include "Base64.h"
+#include <vcore/Base64.h>
 
 namespace ValidationCore {
 Base64Encoder::Base64Encoder() :
@@ -70,7 +70,7 @@ std::string Base64Encoder::get()
     }
 
     if (bptr->length > 0) {
-        return std::string(bptr->data, bptr->length - 1);
+        return std::string(bptr->data, bptr->length);
     }
     return std::string();
 }
@@ -86,6 +86,7 @@ void Base64Encoder::reset()
         ThrowMsg(Exception::InternalError,
                  "Error during allocation memory in BIO");
     }
+    BIO_set_flags(m_b64, BIO_FLAGS_BASE64_NO_NL);
     m_b64 = BIO_push(m_b64, m_bmem);
 }
 
@@ -143,7 +144,7 @@ bool Base64Decoder::finalize()
     BIO *b64, *bmem;
     size_t len = m_input.size();
 
-    DPL::ScopedFree<char> buffer(static_cast<char*>(malloc(len)));
+    VcoreDPL::ScopedFree<char> buffer(static_cast<char*>(malloc(len)));
 
     if (!buffer) {
         LogError("Error in malloc.");
@@ -157,7 +158,7 @@ bool Base64Decoder::finalize()
         ThrowMsg(Exception::InternalError, "Couldn't create BIO object.");
     }
     BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    DPL::ScopedFree<char> tmp(strdup(m_input.c_str()));
+    VcoreDPL::ScopedFree<char> tmp(strdup(m_input.c_str()));
     m_input.clear();
 
     bmem = BIO_new_mem_buf(tmp.Get(), len);

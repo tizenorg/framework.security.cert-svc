@@ -1,0 +1,59 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 0 (0x0)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=KR, ST=Seoul, O=Samsung, OU=Tizen Test, CN=Test Root CA for PKCS12 Test/emailAddress=tt@gmail.com
+        Validity
+            Not Before: May  7 08:25:27 2015 GMT
+            Not After : May  4 08:25:27 2025 GMT
+        Subject: C=KR, ST=Seoul, O=Samsung, OU=Tizen Test, CN=Test Root CA for PKCS12 Test/emailAddress=tt@gmail.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:be:32:b4:73:08:76:e2:4a:1e:39:ac:43:31:20:
+                    a6:5b:a2:a2:7c:95:c7:9a:1c:60:10:47:0e:d3:f0:
+                    50:52:6d:a2:a6:b2:b1:22:25:59:a3:7d:26:ab:3b:
+                    b6:e5:4d:98:9e:47:f3:4f:b3:31:65:a1:16:72:71:
+                    f9:56:64:7b:79:57:9e:f5:5f:d2:af:fa:14:fb:2d:
+                    3d:1f:40:e8:f7:1e:19:8c:d8:d5:9c:90:c7:f8:00:
+                    90:d2:a0:47:93:7b:2f:3a:38:7e:e3:f8:59:73:b7:
+                    a4:06:f4:41:4a:0b:68:1e:2a:37:d5:de:91:55:6e:
+                    d7:5c:7d:08:ee:be:1e:ba:1b
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+                2C:2D:C8:DC:D0:F1:12:04:33:70:4A:4B:4F:DA:92:E0:4D:02:B2:F8
+            X509v3 Authority Key Identifier: 
+                keyid:2C:2D:C8:DC:D0:F1:12:04:33:70:4A:4B:4F:DA:92:E0:4D:02:B2:F8
+
+            X509v3 Basic Constraints: 
+                CA:TRUE
+    Signature Algorithm: sha256WithRSAEncryption
+         91:7f:c8:cb:43:a6:e8:ee:47:9b:4b:31:c3:6f:c0:e5:3e:32:
+         88:c8:4e:5d:96:85:20:8f:86:47:96:b7:c0:53:8d:4b:26:4b:
+         01:2f:5a:4e:87:18:60:2c:25:d6:eb:d7:a9:74:44:bc:3f:60:
+         7a:3b:14:7a:05:ca:f3:99:cb:d5:73:29:52:c5:b2:11:c0:ad:
+         e9:7a:c2:fd:c2:30:ac:f6:76:54:13:51:d6:d7:76:1d:56:58:
+         f0:c9:64:e1:cb:84:b8:af:65:f2:4a:dd:19:b5:05:03:ce:12:
+         8a:9e:25:59:00:8b:d1:4f:25:87:66:bc:54:cc:d5:c8:43:5e:
+         46:7c
+-----BEGIN CERTIFICATE-----
+MIIC2DCCAkGgAwIBAgIBADANBgkqhkiG9w0BAQsFADCBiDELMAkGA1UEBhMCS1Ix
+DjAMBgNVBAgMBVNlb3VsMRAwDgYDVQQKDAdTYW1zdW5nMRMwEQYDVQQLDApUaXpl
+biBUZXN0MSUwIwYDVQQDDBxUZXN0IFJvb3QgQ0EgZm9yIFBLQ1MxMiBUZXN0MRsw
+GQYJKoZIhvcNAQkBFgx0dEBnbWFpbC5jb20wHhcNMTUwNTA3MDgyNTI3WhcNMjUw
+NTA0MDgyNTI3WjCBiDELMAkGA1UEBhMCS1IxDjAMBgNVBAgMBVNlb3VsMRAwDgYD
+VQQKDAdTYW1zdW5nMRMwEQYDVQQLDApUaXplbiBUZXN0MSUwIwYDVQQDDBxUZXN0
+IFJvb3QgQ0EgZm9yIFBLQ1MxMiBUZXN0MRswGQYJKoZIhvcNAQkBFgx0dEBnbWFp
+bC5jb20wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAL4ytHMIduJKHjmsQzEg
+pluionyVx5ocYBBHDtPwUFJtoqaysSIlWaN9Jqs7tuVNmJ5H80+zMWWhFnJx+VZk
+e3lXnvVf0q/6FPstPR9A6PceGYzY1ZyQx/gAkNKgR5N7Lzo4fuP4WXO3pAb0QUoL
+aB4qN9XekVVu11x9CO6+HrobAgMBAAGjUDBOMB0GA1UdDgQWBBQsLcjc0PESBDNw
+SktP2pLgTQKy+DAfBgNVHSMEGDAWgBQsLcjc0PESBDNwSktP2pLgTQKy+DAMBgNV
+HRMEBTADAQH/MA0GCSqGSIb3DQEBCwUAA4GBAJF/yMtDpujuR5tLMcNvwOU+MojI
+Tl2WhSCPhkeWt8BTjUsmSwEvWk6HGGAsJdbr16l0RLw/YHo7FHoFyvOZy9VzKVLF
+shHArel6wv3CMKz2dlQTUdbXdh1WWPDJZOHLhLivZfJK3Rm1BQPOEoqeJVkAi9FP
+JYdmvFTM1chDXkZ8
+-----END CERTIFICATE-----

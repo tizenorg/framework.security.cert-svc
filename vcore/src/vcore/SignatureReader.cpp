@@ -19,9 +19,10 @@
  * @version     1.0
  * @brief       SignatureReader is used to parse widget digital signature.
  */
-#include "SignatureReader.h"
+#include <vcore/SignatureReader.h>
 
-#include "CertificateLoader.h"
+#include <vcore/CertificateLoader.h>
+#include <dpl/log/log.h>
 
 namespace ValidationCore {
 static const std::string XML_NAMESPACE =
@@ -162,11 +163,9 @@ SignatureReader::SignatureReader() :
     m_parserSchema.addBeginTagCallback(TOKEN_OBJECT,
                                        XML_NAMESPACE,
                                        &SignatureReader::tokenObject);
-    m_parserSchema.addBeginTagCallback(
-        TOKEN_SIGNATURE_PROPERTIES,
-        XML_NAMESPACE,
-        &SignatureReader::
-            tokenSignatureProperties);
+    m_parserSchema.addBeginTagCallback(TOKEN_SIGNATURE_PROPERTIES,
+                                       XML_NAMESPACE,
+                                       &SignatureReader::tokenSignatureProperties);
     m_parserSchema.addBeginTagCallback(TOKEN_SIGNATURE_PROPERTY,
                                        XML_NAMESPACE,
                                        &SignatureReader::blankFunction);
@@ -306,11 +305,9 @@ SignatureReader::SignatureReader() :
     m_parserSchema.addEndTagCallback(TOKEN_DSA_SEED_COMPONENT,
                                      XML_NAMESPACE,
                                      &SignatureReader::tokenEndDSASeedComponent);
-    m_parserSchema.addEndTagCallback(
-        TOKEN_DSA_PGENCOUNTER_COMPONENT,
-        XML_NAMESPACE,
-        &SignatureReader::
-            tokenEndDSAPGenCounterComponent);
+    m_parserSchema.addEndTagCallback(TOKEN_DSA_PGENCOUNTER_COMPONENT,
+                                     XML_NAMESPACE,
+                                     &SignatureReader::tokenEndDSAPGenCounterComponent);
     m_parserSchema.addEndTagCallback(TOKEN_RSA_KEY_VALUE,
                                      XML_NAMESPACE,
                                      &SignatureReader::tokenEndRSAKeyValue);
@@ -325,46 +322,58 @@ SignatureReader::SignatureReader() :
                                      &SignatureReader::blankFunction);
 }
 
-void SignatureReader::tokenKeyInfo(SignatureData &signatureData)
+
+void SignatureReader::initialize(
+    SignatureData &signatureData,
+    const std::string &xmlscheme)
 {
-    (void)signatureData;
-}
-void SignatureReader::tokenX509Data(SignatureData &signatureData)
-{
-    (void)signatureData;
-}
-void SignatureReader::tokenX509Certificate(SignatureData &signatureData)
-{
-    (void)signatureData;
-}
-void SignatureReader::tokenPublicKey(SignatureData &signatureData)
-{
-    (void)signatureData;
+    m_parserSchema.initialize(
+            signatureData.getSignatureFileName(),
+            true,
+            SaxReader::VALIDATION_XMLSCHEME,
+            xmlscheme);
 }
 
-void SignatureReader::tokenNamedCurve(SignatureData &signatureData)
+void SignatureReader::read(SignatureData &signatureData)
 {
-    (void)signatureData;
+    m_parserSchema.read(signatureData);
+}
+
+void SignatureReader::blankFunction(SignatureData &)
+{
+}
+
+void SignatureReader::tokenKeyInfo(SignatureData &)
+{
+}
+
+void SignatureReader::tokenX509Data(SignatureData &)
+{
+}
+
+void SignatureReader::tokenX509Certificate(SignatureData &)
+{
+}
+
+void SignatureReader::tokenPublicKey(SignatureData &)
+{
+}
+
+void SignatureReader::tokenNamedCurve(SignatureData &)
+{
     m_nameCurveURI = m_parserSchema.getReader().attribute(TOKEN_URI);
 }
 
 void SignatureReader::tokenTargetRestriction(SignatureData &signatureData)
 {
-    std::string IMEI = m_parserSchema.getReader().attribute(
-            TOKEN_IMEI,
-            SaxReader::
-                THROW_DISABLE);
-    std::string MEID = m_parserSchema.getReader().attribute(
-            TOKEN_MEID,
-            SaxReader::
-                THROW_DISABLE);
+    std::string IMEI = m_parserSchema.getReader().attribute(TOKEN_IMEI);
+    std::string MEID = m_parserSchema.getReader().attribute(TOKEN_MEID);
 
     //less verbose way to say (IMEI && MEID) || (!IMEI && !MEID)
     if (IMEI.empty() == MEID.empty()) {
         //WAC 2.0 WR-4650 point 4
-        ThrowMsg(Exception::TargetRestrictionException,
-                 "TargetRestriction should contain exactly one attribute.");
-        return;
+        VcoreThrowMsg(SignatureReader::Exception::TargetRestriction,
+                      "TargetRestriction should contain exactly one attribute.");
     }
 
     if (!IMEI.empty()) {
@@ -375,14 +384,12 @@ void SignatureReader::tokenTargetRestriction(SignatureData &signatureData)
     }
 }
 
-void SignatureReader::tokenEndKeyInfo(SignatureData &signatureData)
+void SignatureReader::tokenEndKeyInfo(SignatureData &)
 {
-    (void)signatureData;
 }
 
-void SignatureReader::tokenEndX509Data(SignatureData &signatureData)
+void SignatureReader::tokenEndX509Data(SignatureData &)
 {
-    (void)signatureData;
 }
 
 void SignatureReader::tokenEndX509Certificate(SignatureData &signatureData)
@@ -390,9 +397,9 @@ void SignatureReader::tokenEndX509Certificate(SignatureData &signatureData)
     CertificateLoader loader;
     if (CertificateLoader::NO_ERROR !=
         loader.loadCertificateFromRawData(m_parserSchema.getText())) {
-        LogWarning("Certificate could not be loaded!");
-        ThrowMsg(ParserSchemaException::CertificateLoaderError,
-                 "Certificate could not be loaded.");
+        fprintf(stderr, "## [validate error]: Certificate could not be loaded\n");
+        VcoreThrowMsg(ParserSchemaException::CertificateLoaderError,
+                      "Certificate could not be loaded");
     }
     signatureData.m_certList.push_back(loader.getCertificatePtr());
 }
@@ -411,28 +418,25 @@ void SignatureReader::tokenEndRSAKeyValue(SignatureData &signatureData)
     if (CertificateLoader::NO_ERROR !=
         loader.loadCertificateBasedOnExponentAndModulus(m_modulus,
                                                         m_exponent)) {
-        LogWarning("Certificate could not be loaded!");
-        ThrowMsg(ParserSchemaException::CertificateLoaderError,
-                 "Certificate could not be loaded.");
+        fprintf(stderr, "## [validate error]: Certificate could not be loaded\n");
+        VcoreThrowMsg(ParserSchemaException::CertificateLoaderError,
+                      "Certificate could not be loaded");
     }
     signatureData.m_certList.push_back(loader.getCertificatePtr());
 }
 
-void SignatureReader::tokenEndKeyModulus(SignatureData &signatureData)
+void SignatureReader::tokenEndKeyModulus(SignatureData &)
 {
-    (void)signatureData;
     m_modulus = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndKeyExponent(SignatureData &signatureData)
+void SignatureReader::tokenEndKeyExponent(SignatureData &)
 {
-    (void)signatureData;
     m_exponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndPublicKey(SignatureData &signatureData)
+void SignatureReader::tokenEndPublicKey(SignatureData &)
 {
-    (void)signatureData;
     m_publicKey = m_parserSchema.getText();
 }
 
@@ -441,8 +445,9 @@ void SignatureReader::tokenEndECKeyValue(SignatureData &signatureData)
     CertificateLoader loader;
     if (CertificateLoader::NO_ERROR !=
         loader.loadCertificateWithECKEY(m_nameCurveURI, m_publicKey)) {
-        ThrowMsg(ParserSchemaException::CertificateLoaderError,
-                 "Certificate could not be loaded.");
+        fprintf(stderr, "## [validate error]: Certificate could not be loaded\n");
+        VcoreThrowMsg(ParserSchemaException::CertificateLoaderError,
+                      "Certificate could not be loaded");
     }
     signatureData.m_certList.push_back(loader.getCertificatePtr());
 }
@@ -455,60 +460,53 @@ void SignatureReader::tokenEndObject(SignatureData &signatureData)
          (!signatureData.m_meidList.empty())) &&
         m_targetRestrictionObjectFound) {
         //WAC 2.0 WR-4650 point 1
-        ThrowMsg(
-            Exception::TargetRestrictionException,
-            "TargetRestriction should contain exactly one ds:Object containing zero or more wac:TargetRestriction children.");
-        return;
+        VcoreThrowMsg(SignatureReader::Exception::TargetRestriction,
+                      "TargetRestriction should contain exactly one ds:Object "
+                      "containing zero or more wac:TargetRestriction children.");
     }
+
     if ((!signatureData.m_imeiList.empty()) ||
         (!signatureData.m_meidList.empty())) {
         m_targetRestrictionObjectFound = true;
     }
+
 }
-void SignatureReader::tokenEndDSAPComponent(SignatureData& signatureData)
+void SignatureReader::tokenEndDSAPComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeyPComponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSAQComponent(SignatureData& signatureData)
+void SignatureReader::tokenEndDSAQComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeyQComponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSAGComponent(SignatureData& signatureData)
+void SignatureReader::tokenEndDSAGComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeyGComponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSAYComponent(SignatureData& signatureData)
+void SignatureReader::tokenEndDSAYComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeyYComponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSAJComponent(SignatureData& signatureData)
+void SignatureReader::tokenEndDSAJComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeyJComponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSASeedComponent(SignatureData& signatureData)
+void SignatureReader::tokenEndDSASeedComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeySeedComponent = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSAPGenCounterComponent(
-        SignatureData& signatureData)
+void SignatureReader::tokenEndDSAPGenCounterComponent(SignatureData &)
 {
-    (void)signatureData;
     m_dsaKeyPGenCounter = m_parserSchema.getText();
 }
 
-void SignatureReader::tokenEndDSAKeyValue(SignatureData& signatureData)
+void SignatureReader::tokenEndDSAKeyValue(SignatureData &signatureData)
 {
     CertificateLoader loader;
 
@@ -520,9 +518,9 @@ void SignatureReader::tokenEndDSAKeyValue(SignatureData& signatureData)
                                                    m_dsaKeyJComponent,
                                                    m_dsaKeySeedComponent,
                                                    m_dsaKeyPGenCounter)) {
-        LogWarning("Certificate could not be loaded.");
-        ThrowMsg(ParserSchemaException::CertificateLoaderError,
-                 "Certificate could not be loaded.");
+        fprintf(stderr, "## [validate error]: Certificate could not be loaded\n");
+        VcoreThrowMsg(ParserSchemaException::CertificateLoaderError,
+                      "Certificate could not be loaded.");
     }
     signatureData.m_certList.push_back(loader.getCertificatePtr());
 }
@@ -530,9 +528,9 @@ void SignatureReader::tokenEndDSAKeyValue(SignatureData& signatureData)
 void SignatureReader::tokenRole(SignatureData &signatureData)
 {
     if (!signatureData.m_roleURI.empty()) {
-        LogWarning("Multiple definition of Role is not allowed.");
-        ThrowMsg(ParserSchemaException::UnsupportedValue,
-                 "Multiple definition of Role is not allowed.");
+        fprintf(stderr, "## [validate error]: Multiple definition of Role is not allowed\n");
+        VcoreThrowMsg(ParserSchemaException::UnsupportedValue,
+                      "Multiple definition of Role is not allowed.");
     }
     signatureData.m_roleURI = m_parserSchema.getReader().attribute(TOKEN_URI);
 }
@@ -540,9 +538,9 @@ void SignatureReader::tokenRole(SignatureData &signatureData)
 void SignatureReader::tokenProfile(SignatureData &signatureData)
 {
     if (!signatureData.m_profileURI.empty()) {
-        LogWarning("Multiple definition of Profile is not allowed.");
-        ThrowMsg(ParserSchemaException::UnsupportedValue,
-                 "Multiple definition of Profile is not allowed.");
+        fprintf(stderr, "## [validate error]: Multiple definition of Profile is not allowed\n");
+        VcoreThrowMsg(ParserSchemaException::UnsupportedValue,
+                      "Multiple definition of Profile is not allowed.");
     }
     signatureData.m_profileURI = m_parserSchema.getReader().attribute(TOKEN_URI);
 }
@@ -550,9 +548,9 @@ void SignatureReader::tokenProfile(SignatureData &signatureData)
 void SignatureReader::tokenEndIdentifier(SignatureData &signatureData)
 {
     if (!signatureData.m_identifier.empty()) {
-        LogWarning("Multiple definition of Identifier is not allowed.");
-        ThrowMsg(ParserSchemaException::UnsupportedValue,
-                 "Multiple definition of Identifier is not allowed.");
+        fprintf(stderr, "## [validate error]: Multiple definition of Identifier is not allowed\n");
+        VcoreThrowMsg(ParserSchemaException::UnsupportedValue,
+                      "Multiple definition of Identifier is not allowed.");
     }
     signatureData.m_identifier = m_parserSchema.getText();
 }
@@ -562,21 +560,20 @@ void SignatureReader::tokenObject(SignatureData &signatureData)
     std::string id = m_parserSchema.getReader().attribute(TOKEN_ID);
 
     if (id.empty()) {
-        LogWarning("Unsupported value of Attribute Id in Object tag.");
-        ThrowMsg(ParserSchemaException::UnsupportedValue,
-                 "Unsupported value of Attribute Id in Object tag.");
+        fprintf(stderr, "## [validate error]: Unsupported value of Attribute Id in Object tag\n");
+        VcoreThrowMsg(ParserSchemaException::UnsupportedValue,
+                      "Unsupported value of Attribute Id in Object tag.");
     }
 
     signatureData.m_objectList.push_back(id);
 }
 
-void SignatureReader::tokenSignatureProperties(SignatureData &signatureData)
+void SignatureReader::tokenSignatureProperties(SignatureData &)
 {
-    (void)signatureData;
     if (++m_signaturePropertiesCounter > 1) {
-        LogWarning("Only one SignatureProperties tag is allowed in Object");
-        ThrowMsg(ParserSchemaException::UnsupportedValue,
-                 "Only one SignatureProperties tag is allowed in Object");
+        fprintf(stderr, "## [validate error]: Only one SignatureProperties tag is allowed in Object\n");
+        VcoreThrowMsg(ParserSchemaException::UnsupportedValue,
+                      "Only one SignatureProperties tag is allowed in Object");
     }
 }
 } // namespace ValidationCore

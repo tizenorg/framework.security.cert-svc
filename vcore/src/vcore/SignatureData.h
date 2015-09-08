@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 /*
- * @file        SignatureData.cpp
+ * @file        SignatureData.h
  * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
  * @version     1.0
  * @brief       SignatureData is used to storage data parsed from digsig file.
@@ -26,138 +26,47 @@
 #include <set>
 #include <string>
 
-#include <dpl/log/log.h>
-#include <dpl/noncopyable.h>
-#include <dpl/string.h>
-
-#include "Certificate.h"
-#include "CertStoreType.h"
-#include "ValidatorCommon.h"
-
-/* TODO this class should not depend from OCSP headers */
-#include "OCSPCertMgrUtil.h"
+#include <vcore/Certificate.h>
+#include <vcore/CertStoreType.h>
 
 namespace ValidationCore {
-class SignatureData
-{
-  public:
 
-    SignatureData() :
-        m_signatureNumber(-1),
-        m_certificateSorted(false)
-    {
-    }
+typedef std::set<std::string> ReferenceSet;
+typedef std::list<std::string> ObjectList;
 
-    SignatureData(std::string fileName,
-            int fileNumber) :
-        m_signatureNumber(fileNumber),
-        m_fileName(fileName),
-        m_certificateSorted(false)
-    {
-    }
+class SignatureData {
+public:
+    SignatureData();
+    SignatureData(const std::string &fileName, int fileNumber);
 
-    virtual ~SignatureData()
-    {
-    }
+    virtual ~SignatureData();
+
     typedef std::list<std::string> IMEIList;
     typedef std::list<std::string> MEIDList;
 
-    const ReferenceSet& getReferenceSet() const
-    {
-        return m_referenceSet;
-    }
+    void setReference(const ReferenceSet &referenceSet);
+    void setSortedCertificateList(const CertificateList &list);
+    void setStorageType(const CertStoreId::Set &storeIdSet);
 
-    void setReference(const ReferenceSet &referenceSet)
-    {
-        m_referenceSet = referenceSet;
-    }
-
-    CertificateList getCertList(void) const
-    {
-        return m_certList;
-    }
-
-    void setSortedCertificateList(const CertificateList &list)
-    {
-        m_certList = list;
-        m_certificateSorted = true;
-    }
-
-    bool isAuthorSignature(void) const
-    {
-        return m_signatureNumber == -1;
-    }
-
-    std::string getSignatureFileName(void) const
-    {
-        return m_fileName;
-    }
-
-    int getSignatureNumber() const
-    {
-        return m_signatureNumber;
-    }
-
-    std::string getRoleURI() const
-    {
-        return m_roleURI;
-    }
-
-    std::string getProfileURI() const
-    {
-        return m_profileURI;
-    }
-
-    bool containObjectReference(const std::string &ref) const
-    {
-        std::string rName = "#";
-        rName += ref;
-        return m_referenceSet.end() != m_referenceSet.find(rName);
-    }
-
-    ObjectList getObjectList() const
-    {
-        return m_objectList;
-    }
-
-    void setStorageType(const CertStoreId::Set &storeIdSet)
-    {
-        m_storeIdSet = storeIdSet;
-    }
-
-    const CertStoreId::Set& getStorageType(void) const
-    {
-        return m_storeIdSet;
-    }
-
-    const IMEIList& getIMEIList() const
-    {
-        return m_imeiList;
-    }
-
-    const MEIDList& getMEIDList() const
-    {
-        return m_meidList;
-    }
-
-    CertificatePtr getEndEntityCertificatePtr() const
-    {
-        if (m_certificateSorted) {
-            return m_certList.front();
-        }
-        return CertificatePtr();
-    }
-
-    CertificatePtr getRootCaCertificatePtr() const
-    {
-        if (m_certificateSorted) {
-            return m_certList.back();
-        }
-        return CertificatePtr();
-    }
+    const ReferenceSet& getReferenceSet() const;
+    CertificateList getCertList() const;
+    ObjectList getObjectList() const;
+    bool containObjectReference(const std::string &ref) const;
+    bool isAuthorSignature() const;
+    int getSignatureNumber() const;
+    std::string getSignatureFileName() const;
+    std::string getRoleURI() const;
+    std::string getProfileURI() const;
+    const CertStoreId::Set& getStorageType(void) const;
+	const CertStoreId::Type getVisibilityLevel(void) const;
+    const IMEIList& getIMEIList() const;
+    const MEIDList& getMEIDList() const;
+    CertificatePtr getEndEntityCertificatePtr() const;
+    CertificatePtr getRootCaCertificatePtr() const;
 
     friend class SignatureReader;
-  private:
+
+private:
     ReferenceSet m_referenceSet;
     CertificateList m_certList;
 
@@ -181,6 +90,7 @@ class SignatureData
 };
 
 typedef std::set<SignatureData> SignatureDataSet;
-}
+
+} // ValidationCore
 
 #endif

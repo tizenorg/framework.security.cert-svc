@@ -20,9 +20,11 @@
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
 
-#include "Base64.h"
-#include "CertificateLoader.h"
-#include "SSLContainers.h"
+#include <vcore/Base64.h>
+#include <vcore/CertificateLoader.h>
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+#include <vcore/SSLContainers.h>
+#endif
 
 namespace {
 const int MIN_RSA_KEY_LENGTH = 1024;
@@ -32,7 +34,7 @@ const int MIN_RSA_KEY_LENGTH = 1024;
 namespace ValidationCore {
 //// COMPARATOR CLASS START ////
 
-//class CertificateLoaderECDSA : public CertificateLoader::CertificateLoaderComparator, DPL::Noncopyable {
+//class CertificateLoaderECDSA : public CertificateLoader::CertificateLoaderComparator, VcoreDPL::Noncopyable {
 //public:
 //    CertificateLoaderECDSA(const std::string &publicKey)
 //      : m_ecPublicKey(NULL)
@@ -95,7 +97,7 @@ namespace ValidationCore {
 
 //// COMPARATOR RSA CLASS START ////
 
-//class CertificateLoaderRSA : public CertificateLoader::CertificateLoaderComparator, DPL::Noncopyable {
+//class CertificateLoaderRSA : public CertificateLoader::CertificateLoaderComparator, VcoreDPL::Noncopyable {
 //public:
 //    CertificateLoaderRSA(const std::string &m_modulus,const std::string &m_exponent )
 //      : m_rsaPublicKey(NULL)
@@ -430,34 +432,31 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     //    return result;
 }
 
-CertificateLoader::CertificateLoaderResult CertificateLoader::
-    loadCertificateFromRawData(const std::string &rawData)
+CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificateFromRawData(const std::string &rawData)
 {
-    Try {
-        m_certificatePtr =
-            CertificatePtr(new Certificate(rawData, Certificate::FORM_BASE64));
-    } Catch(Certificate::Exception::Base) {
-        LogWarning("Error reading certificate by openssl.");
+    m_certificatePtr = CertificatePtr(new Certificate(rawData, Certificate::FORM_BASE64));
+    if (!m_certificatePtr->getX509())
         return UNKNOWN_ERROR;
-    }
 
     // Check the key length if sig algorithm is RSA
     EVP_PKEY *pKey = X509_get_pubkey(m_certificatePtr->getX509());
 
-    if (pKey->type == EVP_PKEY_RSA) {
-        RSA* pRSA = pKey->pkey.rsa;
+    if (pKey != NULL) {
+        if (pKey->type == EVP_PKEY_RSA) {
+            RSA* pRSA = pKey->pkey.rsa;
 
-        if (pRSA) {
-            int keyLength = RSA_size(pRSA);
+            if (pRSA) {
+                int keyLength = RSA_size(pRSA);
 
-            // key Length (modulus) is in bytes
-            keyLength <<= 3;
-            LogDebug("RSA key length: " << keyLength << " bits");
+                // key Length (modulus) is in bytes
+                keyLength <<= 3;
+                LogDebug("RSA key length: " << keyLength << " bits");
 
-            if (keyLength < MIN_RSA_KEY_LENGTH) {
-                LogError(
-                    "RSA key too short!" << "Has only " << keyLength << " bits");
-                return CERTIFICATE_SECURITY_ERROR;
+                if (keyLength < MIN_RSA_KEY_LENGTH) {
+                    LogError(
+                        "RSA key too short!" << "Has only " << keyLength << " bits");
+                         return CERTIFICATE_SECURITY_ERROR;
+                }
             }
         }
     }

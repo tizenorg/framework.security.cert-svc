@@ -1,6 +1,0 @@
-/usr/bin/cert-svc-test*
-/opt/apps/widget/tests/vcore_widget_uncompressed/*
-/opt/apps/widget/tests/vcore_keys/*
-/opt/apps/widget/tests/vcore_certs/*
-/opt/apps/widget/tests/pkcs12/*
-/opt/share/cert-svc/certs/code-signing/wac/root_cacert0.pem

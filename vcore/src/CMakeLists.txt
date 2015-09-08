@@ -1,22 +1,43 @@
-# == customized for cert-svc build script ==
-SET(API_VERSION ${VERSION_MAJOR})
-# ==========================================
-
 INCLUDE(FindPkgConfig)
 
+IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
 PKG_CHECK_MODULES(VCORE_DEPS
-    dpl-efl
-    dpl-db-efl
-    ecore
-    appcore-efl
+    REQUIRED
+    glib-2.0
     libxml-2.0
-    libsoup-2.4
-    libpcre
     libpcrecpp
     openssl
     xmlsec1
     secure-storage
-    REQUIRED)
+    dlog
+    icu-uc
+    libsoup-2.4
+
+    sqlite3
+    vconf
+    )
+ELSE(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+PKG_CHECK_MODULES(VCORE_DEPS
+    REQUIRED
+    glib-2.0
+    libxml-2.0
+    libpcrecpp
+    openssl
+    xmlsec1
+    secure-storage
+    dlog
+    icu-uc
+    libsoup-2.4
+    )
+ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+
+ADD_DEFINITIONS(${VCORE_DEPS_CFLAGS})
+ADD_DEFINITIONS(${VCORE_DEPS_CFLAGS_OTHER})
+ADD_DEFINITIONS("-DSEPARATED_SINGLETON_IMPLEMENTATION")
+
+SET(LIBCRYPTSVC_DIR
+    ${PROJECT_SOURCE_DIR}/vcore
+    )
 
 SET(VCORE_DIR
     ${PROJECT_SOURCE_DIR}/vcore
@@ -26,132 +47,211 @@ SET(VCORE_SRC_DIR
     ${VCORE_DIR}/src/vcore
     )
 
+########### DPL SOURCES ##########
+SET(VCORE_DPL_DIR
+    ${VCORE_DIR}/src/dpl
+    )
+SET(VCORE_DPL_CORE_SRC_DIR
+    ${VCORE_DPL_DIR}/core/src
+    )
+SET(VCORE_DPL_CORE_SOURCES
+    ${VCORE_DPL_CORE_SRC_DIR}/assert.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/binary_queue.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/char_traits.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/colors.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/errno_string.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/exception.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/file_input.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/mutex.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/noncopyable.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/singleton.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/string.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/type_list.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/thread.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/waitable_event.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/waitable_handle.cpp
+    ${VCORE_DPL_CORE_SRC_DIR}/waitable_handle_watch_support.cpp
+    )
+
+SET(VCORE_DPL_DB_SRC_DIR
+    ${VCORE_DPL_DIR}/db/src
+    )
+SET(VCORE_DPL_DB_SOURCES
+    ${VCORE_DPL_DB_SRC_DIR}/naive_synchronization_object.cpp
+    ${VCORE_DPL_DB_SRC_DIR}/orm.cpp
+    ${VCORE_DPL_DB_SRC_DIR}/sql_connection.cpp
+    ${VCORE_DPL_DB_SRC_DIR}/thread_database_support.cpp
+    )
+
+SET(VCORE_DPL_LOG_SRC_DIR
+    ${VCORE_DPL_DIR}/log/src
+    )
+SET(VCORE_DPL_LOG_SOURCES
+    ${VCORE_DPL_LOG_SRC_DIR}/abstract_log_provider.cpp
+    ${VCORE_DPL_LOG_SRC_DIR}/dlog_log_provider.cpp
+    ${VCORE_DPL_LOG_SRC_DIR}/log.cpp
+    ${VCORE_DPL_LOG_SRC_DIR}/old_style_log_provider.cpp
+    )
+########### DPL SOURCES ##########
+
+
+########### VCORE SOURCES ########
 SET(VCORE_SOURCES
     ${VCORE_SRC_DIR}/api.cpp
     ${VCORE_SRC_DIR}/Base64.cpp
-    ${VCORE_SRC_DIR}/CachedCRL.cpp
-    ${VCORE_SRC_DIR}/CachedOCSP.cpp
     ${VCORE_SRC_DIR}/Certificate.cpp
-    ${VCORE_SRC_DIR}/CertificateCacheDAO.cpp
     ${VCORE_SRC_DIR}/CertificateCollection.cpp
     ${VCORE_SRC_DIR}/CertificateConfigReader.cpp
     ${VCORE_SRC_DIR}/CertificateLoader.cpp
-    ${VCORE_SRC_DIR}/CertificateVerifier.cpp
+    ${VCORE_SRC_DIR}/CertStoreType.cpp
     ${VCORE_SRC_DIR}/Config.cpp
-    ${VCORE_SRC_DIR}/CRL.cpp
-    ${VCORE_SRC_DIR}/CRLCacheDAO.cpp
-    ${VCORE_SRC_DIR}/Database.cpp
-    ${VCORE_SRC_DIR}/DeveloperModeValidator.cpp
-    ${VCORE_SRC_DIR}/OCSP.cpp
+    ${VCORE_SRC_DIR}/CryptoHash.cpp
     ${VCORE_SRC_DIR}/OCSPCertMgrUtil.cpp
-    ${VCORE_SRC_DIR}/OCSPUtil.c
     ${VCORE_SRC_DIR}/ReferenceValidator.cpp
     ${VCORE_SRC_DIR}/RevocationCheckerBase.cpp
     ${VCORE_SRC_DIR}/SaxReader.cpp
+    ${VCORE_SRC_DIR}/SignatureData.cpp
     ${VCORE_SRC_DIR}/SignatureFinder.cpp
     ${VCORE_SRC_DIR}/SignatureReader.cpp
-    ${VCORE_SRC_DIR}/SignatureValidator.cpp
-    ${VCORE_SRC_DIR}/SoupMessageSendBase.cpp
-    ${VCORE_SRC_DIR}/SoupMessageSendSync.cpp
-    ${VCORE_SRC_DIR}/SoupMessageSendAsync.cpp
+    ${VCORE_SRC_DIR}/TimeConversion.cpp
     ${VCORE_SRC_DIR}/VerificationStatus.cpp
     ${VCORE_SRC_DIR}/ValidatorFactories.cpp
     ${VCORE_SRC_DIR}/VCore.cpp
+    ${VCORE_SRC_DIR}/WrtSignatureValidator.cpp
+    ${VCORE_SRC_DIR}/SignatureValidator.cpp
     ${VCORE_SRC_DIR}/XmlsecAdapter.cpp
     ${VCORE_SRC_DIR}/pkcs12.c
+    ${VCORE_SRC_DIR}/exception.cpp
+    )
+
+SET(VCORE_OCSP_CRL_SOURCES
+#    ${VCORE_SRC_DIR}/DUID.cpp
+    ${VCORE_SRC_DIR}/CachedCRL.cpp
+    ${VCORE_SRC_DIR}/CachedOCSP.cpp
+    ${VCORE_SRC_DIR}/CertificateCacheDAO.cpp
+    ${VCORE_SRC_DIR}/CertificateVerifier.cpp
+    ${VCORE_SRC_DIR}/CRL.cpp
+    ${VCORE_SRC_DIR}/CRLImpl.cpp
+    ${VCORE_SRC_DIR}/CRLCacheDAO.cpp
+    ${VCORE_SRC_DIR}/Database.cpp
+    ${VCORE_SRC_DIR}/OCSP.cpp
+    ${VCORE_SRC_DIR}/OCSPImpl.cpp
+    ${VCORE_SRC_DIR}/SoupMessageSendBase.cpp
+    ${VCORE_SRC_DIR}/SoupMessageSendSync.cpp
+    ${VCORE_SRC_DIR}/OCSPUtil.c
     )
 
 SET(VCORE_INCLUDES
     ${VCORE_DEPS_INCLUDE_DIRS}
     ${VCORE_SRC_DIR}
     ${VCORE_DIR}/src
-    ${VCORE_DIR}/src/orm
     ${VCORE_DIR}/src/legacy
-    ${CMAKE_BINARY_DIR}/vcore/src
     )
 
-ADD_DEFINITIONS(${VCORE_DEPS_CFLAGS})
-ADD_DEFINITIONS(${VCORE_DEPS_CFLAGS_OTHER})
-ADD_DEFINITIONS("-DSEPARATED_SINGLETON_IMPLEMENTATION")
-ADD_DEFINITIONS("-DDPL_LOGS_ENABLED")
+SET(VCORE_INCLUDES_OCSP_CRL
+    ${VCORE_DIR}/src/orm
+    )
+########### VCORE SOURCES ########
 
-INCLUDE_DIRECTORIES(${VCORE_INCLUDES})
 
-# cert-svc headers
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
+IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+SET(VCORE_ALL_SOURCES
+    ${VCORE_SOURCES}
+    ${VCORE_DPL_CORE_SOURCES}
+    ${VCORE_DPL_DB_SOURCES}
+    ${VCORE_DPL_LOG_SOURCES}
+    ${VCORE_OCSP_CRL_SOURCES}
+    )
+SET(VCORE_ALL_INCLUDES
+    ${PROJECT_SOURCE_DIR}/include
+    ${VCORE_INCLUDES}
+    ${VCORE_DPL_DIR}/core/include
+    ${VCORE_DPL_DIR}/db/include
+    ${VCORE_DPL_DIR}/log/include
+    ${VCORE_INCLUDES_OCSP_CRL}
+    )
+ELSE(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+SET(VCORE_ALL_SOURCES
+    ${VCORE_SOURCES}
+    ${VCORE_DPL_CORE_SOURCES}
+    ${VCORE_DPL_LOG_SOURCES}
+    )
+SET(VCORE_ALL_INCLUDES
+    ${PROJECT_SOURCE_DIR}/include
+    ${VCORE_INCLUDES}
+    ${VCORE_DPL_DIR}/core/include
+    ${VCORE_DPL_DIR}/log/include
+    )
+ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
 
-ADD_LIBRARY(${TARGET_VCORE_LIB} SHARED ${VCORE_SOURCES})
+INCLUDE_DIRECTORIES(${VCORE_ALL_INCLUDES})
+
+ADD_LIBRARY(${TARGET_VCORE_LIB} SHARED ${VCORE_ALL_SOURCES})
+
 SET_TARGET_PROPERTIES(${TARGET_VCORE_LIB} PROPERTIES
-    SOVERSION ${API_VERSION}
+    SOVERSION ${SO_VERSION}
     VERSION ${VERSION})
 
+IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
 ADD_DEPENDENCIES(${TARGET_VCORE_LIB} Sqlite3DbWTF)
-
-SET_TARGET_PROPERTIES(${TARGET_VCORE_LIB} PROPERTIES
-  COMPILE_FLAGS -fPIC)
+ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
 
 TARGET_LINK_LIBRARIES(${TARGET_VCORE_LIB}
     ${VCORE_DEPS_LIBRARIES}
-    cert-svc
-  )
+    ${TARGET_CERT_SVC_LIB}
+    )
 
 INSTALL(TARGETS ${TARGET_VCORE_LIB}
-    DESTINATION /usr/lib
-    PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+    DESTINATION ${LIBDIR}
     )
 
 INSTALL(FILES
-    ${VCORE_SRC_DIR}/Base64.h
-    ${VCORE_SRC_DIR}/CachedCRL.h
-    ${VCORE_SRC_DIR}/CachedOCSP.h
-    ${VCORE_SRC_DIR}/Certificate.h
-    ${VCORE_SRC_DIR}/CertificateCacheDAO.h
-    ${VCORE_SRC_DIR}/CertificateCollection.h
-    ${VCORE_SRC_DIR}/CertificateConfigReader.h
-    ${VCORE_SRC_DIR}/CertificateLoader.h
-    ${VCORE_SRC_DIR}/CertificateStorage.h
-    ${VCORE_SRC_DIR}/CertificateVerifier.h
-    ${VCORE_SRC_DIR}/CertStoreType.h
-    ${VCORE_SRC_DIR}/Config.h
-    ${VCORE_SRC_DIR}/CRL.h
-    ${VCORE_SRC_DIR}/Database.h
-    ${VCORE_SRC_DIR}/DeveloperModeValidator.h
-    ${VCORE_SRC_DIR}/IAbstractResponseCache.h
-    ${VCORE_SRC_DIR}/OCSP.h
-    ${VCORE_SRC_DIR}/OCSPCertMgrUtil.h
-    ${VCORE_SRC_DIR}/ParserSchema.h
-    ${VCORE_SRC_DIR}/ReferenceValidator.h
-    ${VCORE_SRC_DIR}/RevocationCheckerBase.h
-    ${VCORE_SRC_DIR}/SaxReader.h
-    ${VCORE_SRC_DIR}/scoped_gpointer.h
-    ${VCORE_SRC_DIR}/SignatureData.h
+    ${VCORE_SRC_DIR}/VCore.h
+    ${VCORE_SRC_DIR}/WrtSignatureValidator.h
+    ${VCORE_SRC_DIR}/SignatureValidator.h
     ${VCORE_SRC_DIR}/SignatureFinder.h
     ${VCORE_SRC_DIR}/SignatureReader.h
-    ${VCORE_SRC_DIR}/SignatureValidator.h
-    ${VCORE_SRC_DIR}/SoupMessageSendBase.h
-    ${VCORE_SRC_DIR}/SoupMessageSendSync.h
-    ${VCORE_SRC_DIR}/SoupMessageSendAsync.h
-    ${VCORE_SRC_DIR}/SSLContainers.h
-    ${VCORE_SRC_DIR}/VerificationStatus.h
-    ${VCORE_SRC_DIR}/ValidatorCommon.h
-    ${VCORE_SRC_DIR}/ValidatorFactories.h
-    ${VCORE_SRC_DIR}/VCore.h
-    ${VCORE_SRC_DIR}/XmlsecAdapter.h
-    DESTINATION /usr/include/cert-svc/vcore
-    PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+    ${VCORE_SRC_DIR}/CertificateCollection.h
+    ${VCORE_SRC_DIR}/CryptoHash.h
+
+    ${VCORE_SRC_DIR}/ParserSchema.h
+    ${VCORE_SRC_DIR}/SaxReader.h
+
+    ${VCORE_SRC_DIR}/Certificate.h
+    ${VCORE_SRC_DIR}/SignatureData.h
+    ${VCORE_SRC_DIR}/CertStoreType.h
+    ${VCORE_SRC_DIR}/exception.h
+    DESTINATION ${INCLUDEDIR}/cert-svc/vcore
     )
 
 INSTALL(FILES
     ${VCORE_DIR}/src/cert-svc/ccert.h
-    ${VCORE_DIR}/src/cert-svc/ccrl.h
     ${VCORE_DIR}/src/cert-svc/cinstance.h
     ${VCORE_DIR}/src/cert-svc/cerror.h
-    ${VCORE_DIR}/src/cert-svc/cocsp.h
     ${VCORE_DIR}/src/cert-svc/cpkcs12.h
     ${VCORE_DIR}/src/cert-svc/cprimitives.h
     ${VCORE_DIR}/src/cert-svc/cstring.h
-    DESTINATION /usr/include/cert-svc/cert-svc
-    PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+    DESTINATION ${INCLUDEDIR}/cert-svc/cert-svc
     )
+
+IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+INSTALL(FILES
+    ${VCORE_SRC_DIR}/IAbstractResponseCache.h
+    ${VCORE_SRC_DIR}/VerificationStatus.h
+    ${VCORE_SRC_DIR}/CachedCRL.h
+    ${VCORE_SRC_DIR}/CachedOCSP.h
+    ${VCORE_SRC_DIR}/CRL.h
+    ${VCORE_SRC_DIR}/CRLCacheInterface.h
+    ${VCORE_SRC_DIR}/OCSP.h
+    ${VCORE_SRC_DIR}/OCSPCertMgrUtil.h
+    DESTINATION ${INCLUDEDIR}/cert-svc/vcore
+    )
+
+INSTALL(FILES
+    ${VCORE_DIR}/src/cert-svc/ccrl.h
+    ${VCORE_DIR}/src/cert-svc/cocsp.h
+    DESTINATION ${INCLUDEDIR}/cert-svc/cert-svc
+    )
+ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
 
 #FILE(MAKE_DIRECTORY /opt/share/cert-svc/pkcs12)

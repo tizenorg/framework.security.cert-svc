@@ -27,18 +27,18 @@
 #include <dpl/mutex.h>
 #include <dpl/thread.h>
 
-extern DPL::Mutex g_vcoreDbQueriesMutex;
+extern VcoreDPL::Mutex g_vcoreDbQueriesMutex;
 
 #define VCORE_DB_INTERNAL(tlsCommand, InternalType, interface)               \
-    static DPL::ThreadLocalVariable<InternalType> *tlsCommand ## Ptr = NULL; \
+    static VcoreDPL::ThreadLocalVariable<InternalType> *tlsCommand ## Ptr = NULL; \
     {                                                                        \
-        DPL::Mutex::ScopedLock lock(&g_vcoreDbQueriesMutex);                 \
+        VcoreDPL::Mutex::ScopedLock lock(&g_vcoreDbQueriesMutex);                 \
         if (!tlsCommand ## Ptr) {                                            \
-            static DPL::ThreadLocalVariable<InternalType> tmp;               \
+            static VcoreDPL::ThreadLocalVariable<InternalType> tmp;               \
             tlsCommand ## Ptr = &tmp;                                        \
         }                                                                    \
     }                                                                        \
-    DPL::ThreadLocalVariable<InternalType> &tlsCommand = *tlsCommand ## Ptr; \
+    VcoreDPL::ThreadLocalVariable<InternalType> &tlsCommand = *tlsCommand ## Ptr; \
     if (tlsCommand.IsNull()) { tlsCommand = InternalType(interface); }
 
 #define VCORE_DB_SELECT(name, type, interface) \

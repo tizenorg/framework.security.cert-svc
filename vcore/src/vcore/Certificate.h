@@ -19,47 +19,48 @@
  * @version     1.1
  * @brief
  */
-#ifndef _WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_CERTIFICATE_H_
-#define _WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_CERTIFICATE_H_
+#ifndef _VALIDATION_CORE_CERTIFICATE_H_
+#define _VALIDATION_CORE_CERTIFICATE_H_
 
 #include <list>
 #include <set>
 #include <string>
 #include <vector>
 #include <ctime>
+#include <memory>
 
 #include <openssl/x509.h>
 
-#include <dpl/exception.h>
-#include <dpl/noncopyable.h>
-#include <dpl/shared_ptr.h>
-#include <dpl/enable_shared_from_this.h>
-#include <dpl/optional.h>
-#include <dpl/optional_typedefs.h>
-#include <dpl/string.h>
+#include <vcore/exception.h>
 
 #include <cert-service.h>
 
+extern "C" {
+struct x509_st;
+typedef struct x509_st X509;
+struct X509_name_st;
+typedef struct X509_name_st X509_NAME;
+}
+
 namespace ValidationCore {
-
-// from OpenSSL asn1/a_utctm.c code
-int asn1TimeToTimeT(ASN1_TIME *t,
-                    time_t *res);
-
-
-int asn1GeneralizedTimeToTimeT(ASN1_GENERALIZEDTIME *tm,
-                               time_t *res);
 
 class Certificate;
 
-typedef DPL::SharedPtr<Certificate> CertificatePtr;
+typedef std::shared_ptr<Certificate> CertificatePtr;
 typedef std::list<CertificatePtr> CertificateList;
 
-class Certificate : public DPL::EnableSharedFromThis<Certificate>
-{
-  public:
+class Certificate : public std::enable_shared_from_this<Certificate> {
+public:
+    class Exception {
+    public:
+        VCORE_DECLARE_EXCEPTION_TYPE(ValidationCore::Exception, Base);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, OpensslInternalError);
+    };
+
     typedef std::vector<unsigned char> Fingerprint;
-    typedef DPL::String AltName;
+
+    // ascii string
+    typedef std::string AltName;
     typedef std::set<AltName> AltNameSet;
 
     enum FingerprintType
@@ -77,13 +78,6 @@ class Certificate : public DPL::EnableSharedFromThis<Certificate>
     {
         FORM_DER,
         FORM_BASE64
-    };
-
-    class Exception
-    {
-      public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
-        DECLARE_EXCEPTION_TYPE(Base, OpensslInternalError)
     };
 
     explicit Certificate(X509 *cert);
@@ -111,17 +105,17 @@ class Certificate : public DPL::EnableSharedFromThis<Certificate>
     Fingerprint getFingerprint(FingerprintType type) const;
 
     // getName uses deprecated functions. Usage is strongly discouraged.
-    DPL::String getOneLine(FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getCommonName(FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getCountryName(FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getStateOrProvinceName(
-            FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getLocalityName(FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getOrganizationName(
-            FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getOrganizationalUnitName(
-            FieldType type = FIELD_SUBJECT) const;
-    DPL::OptionalString getOCSPURL() const;
+    // utf8 string
+    std::string getOneLine(FieldType type = FIELD_SUBJECT) const;
+    std::string getCommonName(FieldType type = FIELD_SUBJECT) const;
+    std::string getCountryName(FieldType type = FIELD_SUBJECT) const;
+    std::string getStateOrProvinceName(FieldType type = FIELD_SUBJECT) const;
+    std::string getLocalityName(FieldType type = FIELD_SUBJECT) const;
+    std::string getOrganizationName(FieldType type = FIELD_SUBJECT) const;
+    std::string getOrganizationalUnitName(FieldType type = FIELD_SUBJECT) const;
+    std::string getEmailAddres(FieldType type = FIELD_SUBJECT) const;
+    std::string getOCSPURL() const;
+
 
     // Openssl supports 9 types of alternative name filed.
     // 4 of them are "string similar" types so it is possible
@@ -131,6 +125,10 @@ class Certificate : public DPL::EnableSharedFromThis<Certificate>
     time_t getNotAfter() const;
 
     time_t getNotBefore() const;
+
+    ASN1_TIME* getNotAfterTime() const;
+
+    ASN1_TIME* getNotBeforeTime() const;
 
     /**
      * @brief This is convenient function.
@@ -147,22 +145,33 @@ class Certificate : public DPL::EnableSharedFromThis<Certificate>
 
     long getVersion() const;
 
-    DPL::String getSerialNumberString() const;
+    // utf8 string
+    std::string getSerialNumberString() const;
+    std::string getKeyUsageString() const;
+    std::string getSignatureAlgorithmString() const;
+    std::string getPublicKeyString() const;
 
-    DPL::String getKeyUsageString() const;
+    /*
+     * 0 - not CA
+     * 1 - CA
+     * 2 - deprecated and not used
+     * 3 - older version of CA
+     * 4 - older version of CA
+     * 5 - netscape CA
+     */
+    int isCA() const;
 
-    DPL::String getSignatureAlgorithmString() const;
+    static std::string FingerprintToColonHex(
+            const Fingerprint &fingerprint);
 
-    DPL::String getPublicKeyString() const;
-
-  protected:
+protected:
     X509_NAME *getX509Name(FieldType type) const;
 
-    DPL::OptionalString getField(FieldType type,
-                            int fieldNid) const;
+    // utf8 string
+    std::string getField(FieldType type, int fieldNid) const;
 
     X509 *m_x509;
 };
 } // namespace ValidationCore
 
-#endif
+#endif // _VALIDATION_CORE_CERTIFICATE_H_

@@ -19,32 +19,6 @@
  * @version     1.0
  * @brief
  */
-
-/* 
- * Copyright (C) 2002-2003 Aleksey Sanin.  All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
-
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
-
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
-
-
 #include <cstdlib>
 #include <cstring>
 
@@ -62,11 +36,15 @@
 #include <xmlsec/crypto.h>
 #include <xmlsec/io.h>
 #include <xmlsec/keyinfo.h>
+#include <xmlsec/errors.h>
 
 #include <dpl/assert.h>
 #include <dpl/log/log.h>
 
-#include "XmlsecAdapter.h"
+#include <vcore/XmlsecAdapter.h>
+
+#include <vcore/ValidatorCommon.h>
+
 #include <dpl/singleton_impl.h>
 IMPLEMENT_SINGLETON(ValidationCore::XmlSec)
 
@@ -99,7 +77,8 @@ int XmlSec::fileMatchCallback(const char *filename)
 void* XmlSec::fileOpenCallback(const char *filename)
 {
     std::string path = s_prefixPath + filename;
-    LogDebug("Xmlsec opening: " << path);
+
+   // LogDebug("Xmlsec opening: " << path);
     return new FileWrapper(xmlFileOpen(path.c_str()),false);
 }
 
@@ -121,6 +100,7 @@ int XmlSec::fileReadCallback(void *context,
 
 int XmlSec::fileCloseCallback(void *context)
 {
+  //LogDebug("Xmlsec closing:  ");
     FileWrapper *fw = static_cast<FileWrapper*>(context);
     int output = 0;
     if (!(fw->released)) {
@@ -146,8 +126,29 @@ void XmlSec::fileExtractPrefix(XmlSecContext *context)
     }
 }
 
+void LogDebugPrint(const char* file, int line, const char* func, 
+       const char* errorObject, const char* errorSubject, 
+       int reason, const char* msg)
+{
+    char total[1024];
+    snprintf(total, sizeof(total), "[%s(%d)] : [%s] : [%s] : [%s]", func, line, errorObject, errorSubject, msg);
+
+    if(reason != 256)
+    {
+       fprintf(stderr, "## [validate error]: %s\n", total);
+       LogError(" " << total);
+    }
+    else
+    {
+       LogDebug(" " << total);
+    }
+}
+
 XmlSec::XmlSec() :
-    m_initialized(false)
+    m_initialized(false),
+    m_noHash(false),
+    m_partialHash(false),
+    m_pList(NULL)
 {
     LIBXML_TEST_VERSION
         xmlLoadExtDtdDefaultValue = XML_DETECT_IDS | XML_COMPLETE_ATTRS;
@@ -221,6 +222,8 @@ void XmlSec::deinitialize(void)
 
 XmlSec::~XmlSec()
 {
+   m_noHash= false;
+   m_partialHash = false;
     if (m_initialized) {
         deinitialize();
     }
@@ -277,14 +280,70 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
         dsigCtx->keyInfoReadCtx.certsVerificationTime = context->validationTime;
     }
 
-    /*   Verify signature */
-    if (xmlSecDSigCtxVerify(dsigCtx, node) < 0) {
-        LogWarning("Signature verify error.");
+    if( m_noHash == true || m_partialHash == true ) {
+        LogDebug("SignatureEx start >> ");
+        if( m_pList == NULL ) {
+            LogWarning("## [validate]: uriList does not exist" );
+            fprintf(stderr, "## [validate]: uriList does not exist\n");
+            res = xmlSecDSigCtxVerifyEx(dsigCtx, node, 1, NULL);
+    } else {
+        if (!m_pList) {
+          LogWarning("## [validate]: uriList does not exist" );
+          fprintf(stderr, "## [validate]: uriList does not exist\n");
+          res = -1;
+          goto done;
+        }
+
+        size_t n = m_pList->size();
+
+        char *pList[n + 1];
+        std::list<std::string>::const_iterator itr = m_pList->begin();
+        std::string tmpString;
+        char *uri = NULL;
+        size_t len;
+
+		size_t i = 0;
+        for(; itr != m_pList->end(); ++itr) {
+           tmpString = (*itr);
+           uri = (char*)tmpString.c_str();
+           len = strlen(uri);
+           pList[i] = (char *)malloc(len + 1);
+           memcpy(pList[i], uri, len);
+           pList[i][len] = '\0';
+           fprintf(stderr, "## [validate]: uriList[%d] = %s\n", i, pList[i]);
+           ++i;
+        }
+        pList[n] = '\0';
+
+        res = xmlSecDSigCtxVerifyEx(dsigCtx, node, 0, (void*)pList);
+        i = 0;
+
+        while (pList[i]) {
+          free(pList[i]);
+          ++i;
+        }
+     }
+
+     if(res < 0) {
+        LogError("SignatureEx verify error.");
+        fprintf(stderr, "## [validate error]: SignatureEx verify error\n");
+        res = -1;
         goto done;
+     }
+    } else {
+       LogDebug("Signature start >> ");
+
+       /*  Verify signature */
+       if (xmlSecDSigCtxVerify(dsigCtx, node) < 0) {
+         LogError("Signature verify error.");
+         fprintf(stderr, "## [validate error]: Signature verify error\n");
+         res = -1;
+         goto done;
+      }
     }
 
     if (dsigCtx->keyInfoReadCtx.flags2 &
-        XMLSEC_KEYINFO_ERROR_FLAGS_BROKEN_CHAIN) {
+     XMLSEC_KEYINFO_ERROR_FLAGS_BROKEN_CHAIN) {
         LogWarning("XMLSEC_KEYINFO_FLAGS_ALLOW_BROKEN_CHAIN was set to true!");
         LogWarning("Signature contains broken chain!");
         context->errorBrokenChain = true;
@@ -296,13 +355,14 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
         res = 0;
     } else {
         LogDebug("Signature is INVALID");
+        res = -1;
         goto done;
     }
 
     if (dsigCtx->c14nMethod && dsigCtx->c14nMethod->id &&
         dsigCtx->c14nMethod->id->name) {
-        LogInfo("Canonicalization method: " <<
-                reinterpret_cast<const char *>(dsigCtx->c14nMethod->id->name));
+       // LogInfo("Canonicalization method: " <<
+         //       reinterpret_cast<const char *>(dsigCtx->c14nMethod->id->name));
     }
 
     size = xmlSecPtrListGetSize(&(dsigCtx->signedInfoReferences));
@@ -318,10 +378,10 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
                     reinterpret_cast<const char *>(dsigRefCtx->digestMethod->id
                                                        ->name);
                 std::string strDigest(pDigest);
-                LogInfo("reference digest method: " <<
-                        reinterpret_cast<const char *>(dsigRefCtx->digestMethod
+                /*LogInfo("reference digest method: " <<
+                      reinterpret_cast<const char *>(dsigRefCtx->digestMethod
                                                            ->id
-                                                           ->name));
+                                                           ->name));*/
                 if (strDigest == DIGEST_MD5) {
                     LogWarning("MD5 digest method used! Please use sha");
                     res = -1;
@@ -334,6 +394,10 @@ XmlSec::Result XmlSec::validateFile(XmlSecContext *context,
     }
 
 done:
+    m_pList = NULL;
+    m_noHash = false;
+    m_partialHash = false;
+
     /*   cleanup */
     if (dsigCtx != NULL) {
         xmlSecDSigCtxDestroy(dsigCtx);
@@ -392,7 +456,9 @@ XmlSec::Result XmlSec::validate(XmlSecContext *context)
 {
     Assert(context);
     Assert(!(context->signatureFile.empty()));
-    Assert(context->certificatePtr.Get() || !(context->certificatePath.empty()));
+    Assert(context->certificatePtr.get() || !(context->certificatePath.empty()));
+
+    xmlSecErrorsSetCallback(LogDebugPrint);
 
     if (!m_initialized) {
         LogError("XmlSec is not initialized.");
@@ -412,7 +478,7 @@ XmlSec::Result XmlSec::validate(XmlSecContext *context)
     }
     context->referenceSet.clear();
 
-    if (context->certificatePtr.Get()) {
+    if (context->certificatePtr.get()) {
         loadDERCertificateMemory(context, mngr.get());
     }
 
@@ -421,5 +487,29 @@ XmlSec::Result XmlSec::validate(XmlSecContext *context)
     }
 
     return validateFile(context, mngr.get());
+}
+
+XmlSec::Result XmlSec::validateNoHash(XmlSecContext *context)
+{
+    xmlSecErrorsSetCallback(LogDebugPrint);
+
+    m_noHash = true;
+    return validate(context);
+}
+
+XmlSec::Result XmlSec::validatePartialHash(XmlSecContext *context)
+{
+    xmlSecErrorsSetCallback(LogDebugPrint);
+
+    m_partialHash = true;
+    return validate(context);
+}
+
+XmlSec::Result XmlSec::setPartialHashList(const std::list<std::string>& targetUri)
+{
+  xmlSecErrorsSetCallback(LogDebugPrint);
+
+    m_pList = (std::list<std::string>*)&targetUri;
+    return NO_ERROR;
 }
 } // namespace ValidationCore

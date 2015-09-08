@@ -13,23 +13,31 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#ifndef _SIGNATUREVALIDATOR_H_
-#define _SIGNATUREVALIDATOR_H_
+/*
+ * @file        SignatureValidator.h
+ * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @version     1.0
+ * @brief       Implementatin of tizen signature validation protocol.
+ */
+#ifndef _VALIDATION_CORE_SIGNATUREVALIDATOR_H_
+#define _VALIDATION_CORE_SIGNATUREVALIDATOR_H_
 
-#include <dpl/singleton.h>
+#include <string>
 
-#include "Certificate.h"
-#include "OCSPCertMgrUtil.h"
-#include "SignatureData.h"
-
-#include "ValidatorCommon.h"
-#include "VerificationStatus.h"
+#include <vcore/SignatureData.h>
 
 namespace ValidationCore {
-// Todo nocopyable
-class SignatureValidator
-{
-  public:
+
+class SignatureValidator {
+public:
+    class ImplSignatureValidator;
+
+    enum AppType
+    {
+        TIZEN,
+        WAC20
+    };
+
     enum Result
     {
         SIGNATURE_VALID,
@@ -39,35 +47,32 @@ class SignatureValidator
         SIGNATURE_REVOKED
     };
 
-    /**
-     * Validation of the signature.
-     * If falidation succeed SignatureData will contains:
-     *   list of validated references
-     *   set selfSigned value
-     *   root ca certificate
-     *   end entity certificate
-     */
-    Result check(SignatureData &data,
-            const std::string &widgetContentPath);
+    SignatureValidator() = delete;
+    SignatureValidator(const SignatureValidator &) = delete;
+    const SignatureValidator &operator=(const SignatureValidator &) = delete;
 
-    static std::string FingerprintToColonHex(
-            const Certificate::Fingerprint &fingerprint);
+    explicit SignatureValidator(
+        AppType appType,
+        bool ocspEnable,
+        bool crlEnable,
+        bool complianceMode);
 
-    explicit SignatureValidator(bool ocspEnable,
-                                bool crlEnable,
-                                bool complianceMode);
     virtual ~SignatureValidator();
 
-  private:
-    bool checkRoleURI(const SignatureData &data);
-    bool checkProfileURI(const SignatureData &data);
-    bool checkObjectReferences(const SignatureData &data);
+    Result check(
+        SignatureData &data,
+        const std::string &widgetContentPath);
 
-    bool m_ocspEnable;
-    bool m_crlEnable;
-    bool m_complianceModeEnabled;
+    Result checkList(
+        SignatureData &data,
+        const std::string &widgetContentPath,
+        const std::list<std::string>& uriList);
+
+private:
+     ImplSignatureValidator *m_impl;
 };
 
 } // namespace ValidationCore
 
-#endif // _SIGNATUREVALIDATOR_H_
+#endif // _VALIDATION_CORE_TIZENSIGNATUREVALIDATOR_H_
+

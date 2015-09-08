@@ -19,15 +19,12 @@
  * @version     1.0
  * @brief       DeveloperModeValidatorValidator - implementing WAC 2.0 spec, including TargetRestriction
  */
-
-#ifndef \
-    WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_DEVELOPER_MODE_VALIDATOR_H
-#define \
-    WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_DEVELOPER_MODE_VALIDATOR_H
+#ifndef _VALIDATION_CORE_DEVELOPER_MODE_VALIDATOR_H_
+#define _VALIDATION_CORE_DEVELOPER_MODE_VALIDATOR_H_
 
 #include <string>
 #include <dpl/exception.h>
-#include "SignatureData.h"
+#include <vcore/SignatureData.h>
 
 namespace ValidationCore {
 
@@ -48,7 +45,7 @@ class DeveloperModeValidator
     class Exception
     {
       public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
+        DECLARE_EXCEPTION_TYPE(VcoreDPL::Exception, Base)
         DECLARE_EXCEPTION_TYPE(Base, UnableToLoadTestCertificate)
         DECLARE_EXCEPTION_TYPE(Base, NoTargetRestrictionSatisfied)
     };
@@ -63,5 +60,5 @@ class DeveloperModeValidator
 };
 
 }
-#endif /* WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_DEVELOPER_MODE_VALIDATOR_H */
+#endif /* _VALIDATION_CORE_DEVELOPER_MODE_VALIDATOR_H_ */
 

@@ -42,8 +42,10 @@ const CertificateIdentifier& createCertificateIdentifier()
         std::string schema =
             ConfigSingleton::Instance().getXMLSchemaPath();
         LogDebug("File with fingerprint list schema is: " << schema);
+
         reader.initialize(file, schema);
         reader.read(certificateIdentifier);
+
         initialized = true;
     }
     return certificateIdentifier;

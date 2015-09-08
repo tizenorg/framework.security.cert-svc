@@ -26,6 +26,11 @@ do
     chown root:6026 /opt/dbspace/.$name.db-journal
     chmod 660 /opt/dbspace/.$name.db
     chmod 660 /opt/dbspace/.$name.db-journal
+    if [ -f /usr/lib/rpm-plugins/msm.so ]
+    then
+        chsmack -a "cert-svc::db" /opt/dbspace/.$name.db
+        chsmack -a "cert-svc::db" /opt/dbspace/.$name.db-journal
+    fi    
 done
 
 

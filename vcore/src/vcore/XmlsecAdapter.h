@@ -19,8 +19,8 @@
  * @version     1.0
  * @brief
  */
-#ifndef _XMLSECADAPTER_H_
-#define _XMLSECADAPTER_H_
+#ifndef _VALIDATION_CORE_XMLSECADAPTER_H_
+#define _VALIDATION_CORE_XMLSECADAPTER_H_
 
 #include <xmlsec/keysmngr.h>
 
@@ -28,11 +28,11 @@
 #include <dpl/noncopyable.h>
 #include <dpl/singleton.h>
 
-#include "Certificate.h"
-#include "ValidatorCommon.h"
+#include <vcore/Certificate.h>
+#include <vcore/SignatureData.h>
 
 namespace ValidationCore {
-class XmlSec : public DPL::Noncopyable
+class XmlSec : public VcoreDPL::Noncopyable
 {
   public:
 
@@ -97,7 +97,7 @@ class XmlSec : public DPL::Noncopyable
     class Exception
     {
       public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
+        DECLARE_EXCEPTION_TYPE(VcoreDPL::Exception, Base)
         DECLARE_EXCEPTION_TYPE(Base, InternalError)
     };
 
@@ -105,7 +105,11 @@ class XmlSec : public DPL::Noncopyable
      * Context - input/output param.
      */
     Result validate(XmlSecContext *context);
-  protected:
+    Result validateNoHash(XmlSecContext *context);
+    Result validatePartialHash(XmlSecContext *context);
+    Result setPartialHashList(const std::list<std::string>& targetUri);
+ 
+ protected:
     XmlSec();
     ~XmlSec();
   private:
@@ -119,6 +123,9 @@ class XmlSec : public DPL::Noncopyable
             xmlSecKeysMngrPtr mngr);
 
     bool m_initialized;
+    bool m_noHash;
+    bool m_partialHash;
+    std::list<std::string>* m_pList;
 
     static std::string s_prefixPath;
     static int fileMatchCallback(const char *filename);
@@ -130,6 +137,8 @@ class XmlSec : public DPL::Noncopyable
     static void fileExtractPrefix(XmlSecContext *context);
 };
 
-typedef DPL::Singleton<XmlSec> XmlSecSingleton;
+typedef VcoreDPL::Singleton<XmlSec> XmlSecSingleton;
+
 } // namespace ValidationCore
-#endif // _XMLSECVERIFICATOR_H_
+
+#endif // _VALIDATION_CORE_XMLSECVERIFICATOR_H_

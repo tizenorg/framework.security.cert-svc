@@ -45,10 +45,10 @@ struct ScopedGPointerPolicy
 };
 
 template <typename Class>
-class ScopedGPointer : public DPL::ScopedResource<ScopedGPointerPolicy>
+class ScopedGPointer : public VcoreDPL::ScopedResource<ScopedGPointerPolicy>
 {
     typedef ScopedGPointerPolicy Policy;
-    typedef DPL::ScopedResource<Policy> BaseType;
+    typedef VcoreDPL::ScopedResource<Policy> BaseType;
 
   public:
     explicit ScopedGPointer(typename Policy::Type pointer =

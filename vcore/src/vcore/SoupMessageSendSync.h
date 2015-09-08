@@ -19,10 +19,10 @@
  * @file        SoupMessageSendSync.h
  * @brief       Wrapper for soup synchronous interface.
  */
-#ifndef _SRC_VALIDATION_CORE_SOUP_MESSAGE_SEND_SYNC_H_
-#define _SRC_VALIDATION_CORE_SOUP_MESSAGE_SEND_SYNC_H_
+#ifndef _VALIDATION_CORE_SOUP_MESSAGE_SEND_SYNC_H_
+#define _VALIDATION_CORE_SOUP_MESSAGE_SEND_SYNC_H_
 
-#include "SoupMessageSendBase.h"
+#include <vcore/SoupMessageSendBase.h>
 
 #include <vcore/scoped_gpointer.h>
 

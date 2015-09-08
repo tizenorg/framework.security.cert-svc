@@ -19,7 +19,7 @@
  * @file        CertificateVerifier.cpp
  * @brief       This class integrates OCSP and CRL.
  */
-#include "CertificateVerifier.h"
+#include <vcore/CertificateVerifier.h>
 
 #include <dpl/assert.h>
 #include <dpl/foreach.h>

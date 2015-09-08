@@ -13,9 +13,40 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#include "VerificationStatus.h"
+/*!
+ * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @version     0.2
+ * @file        VerficationStatus.cpp
+ * @brief       OCSP/CRL status.
+ */
+#include <vcore/VerificationStatus.h>
 
 namespace ValidationCore {
+
+VerificationStatusSet::VerificationStatusSet()
+    : m_verdictMap(0)
+{}
+
+void VerificationStatusSet::add(VerificationStatus status) {
+    m_verdictMap |= status;
+}
+
+bool VerificationStatusSet::contains(VerificationStatus status) const {
+    return m_verdictMap & status;
+}
+
+bool VerificationStatusSet::isEmpty() const {
+    return 0 == m_verdictMap;
+}
+
+void VerificationStatusSet::operator+=(const VerificationStatusSet &second) {
+    m_verdictMap |= second.m_verdictMap;
+}
+
+void VerificationStatusSet::reset() {
+    m_verdictMap = 0;
+}
+
 VerificationStatus VerificationStatusSet::convertToStatus() const
 {
     if (m_verdictMap & VERIFICATION_STATUS_REVOKED) {

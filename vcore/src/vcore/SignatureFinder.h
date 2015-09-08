@@ -18,27 +18,23 @@
  * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
  * @version     1.0
  * @brief       Search for author-signature.xml and signatureN.xml files.
+ *              This class is WAC 2.0 specific and shuld be moved to
+ *              wrt-installer.
  */
-#ifndef _SIGNATUREFINDER_H_
-#define _SIGNATUREFINDER_H_
+#ifndef _VALIDATION_CORE_SIGNATUREFINDER_H_
+#define _VALIDATION_CORE_SIGNATUREFINDER_H_
 
 #include <set>
 #include <string>
 
-#include <pcrecpp.h>
-
-#include "SignatureData.h"
-
 namespace ValidationCore {
-class SignatureFileInfo
-{
-  public:
-    SignatureFileInfo(const std::string &fileName,
-            int num) :
-        m_fileName(fileName),
-        m_fileNumber(num)
-    {
-    }
+
+class SignatureFileInfo {
+public:
+    SignatureFileInfo(const std::string &fileName, int num)
+      : m_fileName(fileName)
+      , m_fileNumber(num)
+    {}
 
     std::string getFileName() const
     {
@@ -54,16 +50,16 @@ class SignatureFileInfo
     {
         return m_fileNumber < second.m_fileNumber;
     }
-  private:
+
+private:
     std::string m_fileName;
     int m_fileNumber;
 };
 
 typedef std::set<SignatureFileInfo> SignatureFileInfoSet;
 
-class SignatureFinder
-{
-  public:
+class SignatureFinder {
+public:
     enum Result
     {
         NO_ERROR,
@@ -72,14 +68,21 @@ class SignatureFinder
         ERROR_ISTREAM
     };
 
-    SignatureFinder(const std::string& dir);
+    SignatureFinder() = delete;
+    explicit SignatureFinder(const std::string& dir);
+
+    virtual ~SignatureFinder();
 
     Result find(SignatureFileInfoSet &set);
 
-  private:
-    std::string m_dir;
-    pcrecpp::RE m_signatureRegexp;
+private:
+    class Impl;
+    Impl *m_impl;
+
+    SignatureFinder(const SignatureFinder &);
+    const SignatureFinder &operator=(const SignatureFinder &);
 };
+
 } // namespace ValidationCore
 
-#endif
+#endif // _VALIDATION_CORE_SIGNATUREFINDER_H_

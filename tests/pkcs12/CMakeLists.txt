@@ -19,19 +19,13 @@
 #
 INCLUDE(FindPkgConfig)
 SET(TARGET_PKCS12_TEST "cert-svc-tests-pkcs12")
+SET(TARGET_PKCS12_TEST_AUX "cert-svc-tests-pkcs12-aux")
 
-PKG_CHECK_MODULES(PKCS12_TEST_DEP
-    libsoup-2.4
-    dpl-test-efl
-    dpl-db-efl
-    libpcrecpp
-    secure-storage
-    REQUIRED
-    )
 
 SET(PKCS12_TEST_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/pkcs12_test.cpp
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/test_cases.cpp
+    ${VCORE_DPL_SOURCES}
     )
 
 INCLUDE_DIRECTORIES(
@@ -39,20 +33,55 @@ INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/tests/pkcs12
     ${PKCS12_TEST_DEP_INCLUDE_DIRS}
     ${VCOREC_TEST_DEP_INCLUDE_DIRS}
+    ${VCORE_DPL_INCLUDE}
     )
 
 ADD_EXECUTABLE(${TARGET_PKCS12_TEST} ${PKCS12_TEST_SOURCES})
-
-ADD_DEFINITIONS("-DDPL_LOGS_ENABLED")
 
 TARGET_LINK_LIBRARIES(${TARGET_PKCS12_TEST}
     ${TARGET_PKCS12_TEST_LIB}
     ${PKCS12_TEST_DEP_LIBRARIES}
     ${TARGET_VCORE_LIB}
-    ${VCOREC_TEST_DEP_LIBRARIES}
+    ${VCORE_TEST_DEP_LIBRARIES}
     )
 
 INSTALL(TARGETS ${TARGET_PKCS12_TEST}
+    DESTINATION /usr/bin
+    PERMISSIONS OWNER_READ
+                OWNER_WRITE
+                OWNER_EXECUTE
+                GROUP_READ
+                GROUP_EXECUTE
+                WORLD_READ
+                WORLD_EXECUTE
+    )
+
+
+SET(PKCS12_TEST_SOURCES_AUX
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/pkcs12_test.cpp
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/aux_test.cpp
+    ${VCORE_DPL_SOURCES}
+    )
+
+INCLUDE_DIRECTORIES(
+    ${PROJECT_SOURCE_DIR}/vcore/src
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12
+    ${PKCS12_TEST_DEP_INCLUDE_DIRS}
+    ${VCOREC_TEST_DEP_INCLUDE_DIRS}
+    ${VCORE_DPL_INCLUDE}
+)
+
+ADD_EXECUTABLE(${TARGET_PKCS12_TEST_AUX} ${PKCS12_TEST_SOURCES_AUX})
+
+TARGET_LINK_LIBRARIES(
+    ${TARGET_PKCS12_TEST_AUX}
+    ${TARGET_PKCS12_TEST_LIB}
+    ${PKCS12_TEST_DEP_LIBRARIES}
+    ${TARGET_VCORE_LIB}
+    ${VCOREC_TEST_DEP_LIBRARIES}
+)
+
+INSTALL(TARGETS ${TARGET_PKCS12_TEST_AUX}
     DESTINATION /usr/bin
     PERMISSIONS OWNER_READ
                 OWNER_WRITE
@@ -67,5 +96,14 @@ INSTALL(FILES
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/test.p12
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/with_pass.p12
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/without_pass.p12
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/eastest036.pfx
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/Maha.pfx
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/filip.pkcs12
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/tizen_test_certs.p12
     DESTINATION /opt/apps/widget/tests/pkcs12/
+)
+
+INSTALL(FILES
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/8956b9bc.0
+    DESTINATION /opt/etc/ssl/certs/
 )

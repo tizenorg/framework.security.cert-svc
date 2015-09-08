@@ -17,53 +17,53 @@
  *
  * @file       CachedCRL.h
  * @author     Tomasz Swierczek (t.swierczek@samsung.com)
- * @version    0.1
+ * @version    0.2
  * @brief      Header file for smart cached CRL class
  */
 
-#ifndef _SRC_VALIDATION_CORE_CACHED_CRL_
-#define _SRC_VALIDATION_CORE_CACHED_CRL_
+#ifndef _VALIDATION_CORE_CACHED_CRL_H_
+#define _VALIDATION_CORE_CACHED_CRL_H_
 
-#include "CRL.h"
-#include "IAbstractResponseCache.h"
+#include <ctime>
+#include <string>
+
+#include <vcore/Certificate.h>
+#include <vcore/CertificateCollection.h>
+#include <vcore/VerificationStatus.h>
+#include <vcore/IAbstractResponseCache.h>
 
 namespace ValidationCore {
 
 class CachedCRL : public IAbstractResponseCache {
-  public:
+public:
     // cache can't be refreshed more frequently than CRL_minTimeValid
-    static const time_t CRL_minTimeValid;
+    static time_t getCRLMinTimeValid();
 
     // to be even more secure, cache will be refreshed for certificate at least
     // after CRL_maxTimeValid from last response
-    static const time_t CRL_maxTimeValid;
+    static time_t getCRLMaxTimeValid();
 
     // upon cache refresh, responses that will be invalid in CRL_refreshBefore
     // seconds will be refreshed
-    static const time_t CRL_refreshBefore;
+    static time_t getCRLRefreshBefore();
 
     VerificationStatus check(const CertificateCollection &certs);
     VerificationStatus checkEndEntity(CertificateCollection &certs);
     void updateCache();
 
-    CachedCRL()
-    {
-    }
-    virtual ~CachedCRL()
-    {
-    }
+    CachedCRL();
 
-  private:
+    virtual ~CachedCRL();
+
+private:
 
     // updates CRL cache for distributor URI
     // useExpiredShift ==true should be used in cron/global cache update
     // since it updates all CRLs that will be out of date in next
     // CRL_refreshBefore seconds
-    bool updateCRLForUri(const std::string & uri,
-                         bool useExpiredShift);
-    time_t getNextUpdateTime(time_t now, time_t response_validity);
+    bool updateCRLForUri(const std::string & uri, bool useExpiredShift);
 };
 
 } // namespace ValidationCore
 
-#endif /* _SRC_VALIDATION_CORE_CACHED_CRL_ */
+#endif /* _VALIDATION_CORE_CACHED_CRL_ */

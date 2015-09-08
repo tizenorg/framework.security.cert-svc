@@ -17,10 +17,10 @@
 #define _TEST_CRL_H
 
 #include <string>
-#include <vcore/CRL.h>
+#include <vcore/CRLImpl.h>
 #include <vcore/CRLCacheDAO.h>
 
-class TestCRL : public ValidationCore::CRL
+class TestCRL : public ValidationCore::CRLImpl
 {
   public:
     TestCRL();

@@ -20,12 +20,13 @@
  * @brief       Simple c++ interface for libxml2.
  */
 #include <dpl/assert.h>
-#include <dpl/exception.h>
 #include <dpl/log/log.h>
 
-#include "SaxReader.h"
+#include <vcore/SaxReader.h>
 
 namespace ValidationCore {
+
+
 SaxReader::SaxReader() :
     m_reader(0)
 {
@@ -38,54 +39,49 @@ SaxReader::~SaxReader()
     }
 }
 
-void SaxReader::initialize(const std::string &filename,
-        bool defaultArgs,
-        ValidationType validate,
-        const std::string &schema)
+void SaxReader::initialize(
+    const std::string &filename,
+    bool defaultArgs,
+    ValidationType validate,
+    const std::string &schema)
 {
     Assert(m_reader == 0 && "Double initialization of SaxReader");
 
     LogDebug("SaxReader opening file: " << filename);
 
-    /*
-     * create a new xml text reader
-     */
     m_reader = xmlNewTextReaderFilename(filename.c_str());
 
-    if (m_reader == NULL) {
-        /*
-         * no such file, return
-         */
-        LogWarning("Error during opening file " << filename);
-        Throw(Exception::FileOpeningError);
+    if (!m_reader) {
+        VcoreThrowMsg(SaxReader::Exception::FileOpeningError,
+                      "opening file " << filename << " error");
     }
+
     if (validate == VALIDATION_XMLSCHEME &&
         xmlTextReaderSchemaValidate(m_reader, schema.c_str())) {
         /*
          * unable to turn on schema validation
          */
-        LogError("Turn on Schema validation failed.");
-        ThrowMsg(Exception::ParserInternalError,
-                 "Turn on Scheme validation failed!");
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                      "Turn on Schema validation failed");
     }
+
     // Path to DTD schema is taken from xml file.
     if (validate == VALIDATION_DTD &&
         xmlTextReaderSetParserProp(m_reader, XML_PARSER_VALIDATE, 1)) {
         /*
          * unable to turn on DTD validation
          */
-        LogError("Turn on DTD validation failed!");
-        ThrowMsg(Exception::ParserInternalError,
-                 "Turn on DTD validation failed!");
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+		              "Turn on DTD validation failed!");
     }
+
     if (defaultArgs &&
         xmlTextReaderSetParserProp(m_reader, XML_PARSER_DEFAULTATTRS, 1)) {
         /*
          * unable to turn on default arguments
          */
-        LogError("Turn on default arguments failed");
-        ThrowMsg(Exception::ParserInternalError,
-                 "Turn on Default Arguments failed!");
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+		              "Turn on default arguments failed");
     }
 }
 
@@ -99,149 +95,119 @@ bool SaxReader::next()
 {
     int res = xmlTextReaderRead(m_reader);
 
-    if (0 == xmlTextReaderIsValid(m_reader)) {
-        LogWarning("Throw exception file not valid!");
-        Throw(Exception::FileNotValid);
-    }
+    if (res < 0)
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                      "xmlTextReaderRead error");
 
-    if (res == 1) {
-        return true;
-    }
+    if (!xmlTextReaderIsValid(m_reader))
+        VcoreThrowMsg(SaxReader::Exception::FileNotValid,
+                      "xmlTextReader is invalid");
 
-    if (res == 0) {
-        return false;
-    }
-    LogError("ParserInternalError");
-    Throw(Exception::ParserInternalError);
+    return res ? true : false;
 }
 
 void SaxReader::next(const std::string &token)
 {
-    xmlTextReaderRead(m_reader);
-    if (0 == xmlTextReaderIsValid(m_reader)) {
-        /*
-         * invalid file
-         */
-        LogWarning("Throw exception file not valid!");
-        Throw(Exception::FileNotValid);
-    }
+    int res = xmlTextReaderRead(m_reader);
+
+    if (res < 0)
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                      "xmlTextReaderRead error");
+
+    if (!xmlTextReaderIsValid(m_reader))
+        VcoreThrowMsg(SaxReader::Exception::FileNotValid,
+                      "xmlTextReader is invalid");
 
     xmlChar *name = xmlTextReaderName(m_reader);
 
-    if (name == NULL) {
-        /*
-         * invalid file
-         */
-        LogWarning("File not Valid");
-        Throw(Exception::FileNotValid);
+    if (!name)
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                      "xmlTextReaderName returns NULL");
+
+    xmlChar *xmlToken = xmlCharStrdup(token.c_str());
+
+    if (xmlStrcmp(name, xmlToken)) {
+        xmlFree(name);
+        xmlFree(xmlToken);
+
+        VcoreThrowMsg(SaxReader::Exception::WrongToken, "Wrong Token");
     }
 
-    if (token == reinterpret_cast<const char*>(name)) {
-        xmlFree(name);
-    } else {
-        /*
-         * we encountered wrong token
-         */
-        xmlFree(name);
-        LogWarning("Wrong Token");
-        Throw(Exception::WrongToken);
-    }
+    xmlFree(name);
+    xmlFree(xmlToken);
 }
 
 bool SaxReader::isEmpty(void)
 {
     int ret = xmlTextReaderIsEmptyElement(m_reader);
-    if (-1 == ret) {
-        LogError("Parser Internal Error");
-        Throw(Exception::ParserInternalErrorInEmptyQuery);
-    }
-    return ret;
+    if (-1 == ret)
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                      "xmlTextReaderIsEmptyElement error");
+
+    return ret ? true : false;
 }
 
-std::string SaxReader::attribute(const std::string &token,
-        ThrowType throwStatus)
+std::string SaxReader::attribute(const std::string &token, ThrowType throwStatus)
 {
-    std::string value;
     xmlChar *attr = xmlTextReaderGetAttribute(m_reader, BAD_CAST(token.c_str()));
-    if ((NULL == attr) && (throwStatus == THROW_DISABLE)) {
-        /*
-         * return empty string
-         */
-        //TODO why not DPL::Optional?
-        return std::string();
-    }
-    if (NULL == attr) {
-        /*
-         * error during read attribute
-         */
-        LogError("Error in reading attribute.");
-        Throw(Exception::ParserInternalErrorInReadingAttribute);
+    if (!attr) {
+        if (throwStatus == THROW_DISABLE) {
+            LogError("Error in reading attribute.");
+            return std::string();
+        }
+        else {
+            VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                          "xmlTextReaderGetAttribute error");
+        }
     }
 
-    /*
-     * cast it to val and return it
-     */
-    value = reinterpret_cast<const char *>(attr);
+    std::string value = reinterpret_cast<const char *>(attr);
     xmlFree(attr);
+
     return value;
 }
 
-// KW std::string SaxReader::fullName(){
-// KW     std::string value;
-// KW     xmlChar *name = xmlTextReaderName(m_reader);
-// KW     if(NULL == name) {
-// KW         LogError("Error in reading name.");
-// KW         Throw(Exception::ErrorReadingName);
-// KW     }
-// KW     value = reinterpret_cast<const char *>(name);
-// KW     xmlFree(name);
-// KW     return value;
-// KW }
-
 std::string SaxReader::name()
 {
-    std::string value;
     xmlChar *name = xmlTextReaderName(m_reader);
-    if (NULL == name) {
-        LogError("Error in reading name.");
-        Throw(Exception::ErrorReadingName);
-    }
-    value = reinterpret_cast<const char *>(name);
+    if (!name)
+        VcoreThrowMsg(SaxReader::Exception::ReadingNameError,
+                      "reading name error");
+
+    std::string value = reinterpret_cast<const char *>(name);
     xmlFree(name);
     size_t pos = value.find_last_of(":");
     if (pos != std::string::npos) {
         value.erase(0, pos + 1);
     }
+
     return value;
 }
 
 std::string SaxReader::namespaceURI()
 {
-    std::string value;
     xmlChar *name = xmlTextReaderNamespaceUri(m_reader);
-    if (NULL != name) {
-        value = reinterpret_cast<const char *>(name);
-        xmlFree(name);
+    if (!name) {
+        LogError("Error in reading namespaceURI");
+        return std::string();
     }
+
+    std::string value = reinterpret_cast<const char *>(name);
+    xmlFree(name);
+
     return value;
 }
 
 std::string SaxReader::value()
 {
-    std::string value;
-    /*
-     * get value of node
-     */
     xmlChar *text = xmlTextReaderValue(m_reader);
-    if (NULL == text) {
-        LogError("Error in reading value");
-        Throw(Exception::ErrorReadingValue);
-    }
-    value = reinterpret_cast<const char*>(text);
-    /*
-     * free text and return the val
-     */
+    if (!text)
+        VcoreThrowMsg(SaxReader::Exception::ReadingValueError,
+                      "reading value error");
+
+    std::string value = reinterpret_cast<const char*>(text);
     xmlFree(text);
+
     return value;
 }
 
@@ -278,31 +244,20 @@ SaxReader::NodeType SaxReader::type()
 
 void SaxReader::dumpNode(std::string &buffer)
 {
-    /*
-     * size of buffer
-     */
-    int size;
-    /*
-     * pointer to buffer
-     */
     xmlBufferPtr buff = xmlBufferCreate();
 
     xmlNodePtr node = xmlTextReaderExpand(m_reader);
-
-    if (node == NULL) {
-        /*
-         * internal parser error
-         */
+    if (!node) {
         xmlBufferFree(buff);
-        LogError("Parser Internal Error");
-        Throw(Exception::ParserInternalError);
+        VcoreThrowMsg(SaxReader::Exception::ParserInternalError,
+                      "xmlTextReaderExpand error");
     }
 
-    /*
-     * get a size and fill in a buffer
-     */
-    size = xmlNodeDump(buff, node->doc, node, 0, 0);
-    buffer.insert(0, reinterpret_cast<char*>(buff->content), size);
+    int size = xmlNodeDump(buff, node->doc, node, 0, 0);
+    if (size > 0) {
+        buffer.insert(0, reinterpret_cast<char*>(buff->content), size);
+    }
     xmlBufferFree(buff);
 }
+
 } // namespace ValidationCore

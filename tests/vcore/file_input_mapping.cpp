@@ -44,7 +44,7 @@ FileInputMapping::FileInputMapping(const std::string &fileName)
     }
 
     // Scoped close on file
-    DPL::ScopedClose scopedClose(file);
+    VcoreDPL::ScopedClose scopedClose(file);
 
     // Calculate file size
     off64_t size = lseek64(file, 0, SEEK_END);

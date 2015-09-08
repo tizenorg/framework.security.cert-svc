@@ -19,29 +19,39 @@
  * @version     1.0
  * @brief       Search for author-signature.xml and signatureN.xml files.
  */
+#include <vcore/SignatureFinder.h>
+#include <dpl/log/log.h>
+
 #include <dirent.h>
 #include <errno.h>
 #include <istream>
 
-#include <dpl/log/log.h>
-
-#include "SignatureFinder.h"
+#include <pcrecpp.h>
 
 namespace ValidationCore {
 static const char *SIGNATURE_AUTHOR = "author-signature.xml";
 static const char *REGEXP_DISTRIBUTOR_SIGNATURE =
     "^(signature)([1-9][0-9]*)(\\.xml)";
 
-SignatureFinder::SignatureFinder(const std::string& dir) :
-    m_dir(dir),
-    m_signatureRegexp(REGEXP_DISTRIBUTOR_SIGNATURE)
-{
-}
+class SignatureFinder::Impl {
+public:
+    Impl(const std::string& dir)
+      : m_dir(dir)
+      , m_signatureRegexp(REGEXP_DISTRIBUTOR_SIGNATURE)
+    {}
 
-SignatureFinder::Result SignatureFinder::find(SignatureFileInfoSet &set)
+    virtual ~Impl(){}
+
+    Result find(SignatureFileInfoSet &set);
+
+private:
+    std::string m_dir;
+    pcrecpp::RE m_signatureRegexp;
+};
+
+SignatureFinder::Result SignatureFinder::Impl::find(SignatureFileInfoSet &set)
 {
     DIR *dp;
-    struct dirent *dirp;
 
     /*
      * find a dir
@@ -51,7 +61,9 @@ SignatureFinder::Result SignatureFinder::find(SignatureFileInfoSet &set)
         return ERROR_OPENING_DIR;
     }
 
-    for (errno = 0; (dirp = readdir(dp)) != NULL; errno = 0) {
+	struct dirent entry;
+    struct dirent *dirp = NULL;
+    while (readdir_r(dp, &entry, &dirp) == 0 && dirp) {
         /**
          * check if it's author signature
          */
@@ -75,13 +87,21 @@ SignatureFinder::Result SignatureFinder::find(SignatureFileInfoSet &set)
         }
     }
 
-    if (errno != 0) {
-        LogError("Error in readdir");
-        closedir(dp);
-        return ERROR_READING_DIR;
-    }
-
     closedir(dp);
     return NO_ERROR;
 }
+
+SignatureFinder::SignatureFinder(const std::string& dir)
+  : m_impl(new Impl(dir))
+{}
+
+SignatureFinder::~SignatureFinder()
+{
+    delete m_impl;
+}
+
+SignatureFinder::Result SignatureFinder::find(SignatureFileInfoSet &set) {
+    return m_impl->find(set);
+}
+
 } // namespace ValidationCore

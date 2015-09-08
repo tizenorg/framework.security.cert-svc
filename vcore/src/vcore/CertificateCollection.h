@@ -13,13 +13,19 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#ifndef _WRT_ENGINE_SRC_VALIDATION_CORE_CERTIFICATECOLLECTION_H_
-#define _WRT_ENGINE_SRC_VALIDATION_CORE_CERTIFICATECOLLECTION_H_
+/*
+ * @file        CertificateCollection.h
+ * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @version     0.1
+ * @brief
+ */
+#ifndef _VALIDATION_CORE_CERTIFICATECOLLECTION_H_
+#define _VALIDATION_CORE_CERTIFICATECOLLECTION_H_
 
 #include <list>
 #include <string>
 
-#include <dpl/exception.h>
+#include <vcore/exception.h>
 
 #include <vcore/Certificate.h>
 
@@ -31,14 +37,12 @@ namespace ValidationCore {
  * It could check if collection creates certificate chain.
  */
 
-class CertificateCollection
-{
-  public:
-    class Exception
-    {
-      public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
-        DECLARE_EXCEPTION_TYPE(Base, WrongUsage)
+class CertificateCollection {
+public:
+    class Exception {
+    public:
+        VCORE_DECLARE_EXCEPTION_TYPE(ValidationCore::Exception, Base);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, WrongUsage);
     };
 
     CertificateCollection();
@@ -115,18 +119,12 @@ class CertificateCollection
     /*
      * It returns size of certificate collection.
      */
-    inline size_t size() const
-    {
-        return m_certList.size();
-    }
+    size_t size() const;
 
     /*
      * Return true if collection is empty.
      */
-    inline bool empty() const
-    {
-        return m_certList.empty();
-    }
+    bool empty() const;
 
     /*
      * This will return end iterator to internal collection.
@@ -134,10 +132,7 @@ class CertificateCollection
      * Note: this iterator will lose validity if you call non const
      * method on CertificateCollection class.
      */
-    inline const_iterator begin() const
-    {
-        return m_certList.begin();
-    }
+    const_iterator begin() const;
 
     /*
      * This will return end iterator to internal collection.
@@ -145,10 +140,7 @@ class CertificateCollection
      * Note: this iterator will lose validity if you call non const
      * method on CertificateCollection class.
      */
-    inline const_iterator end() const
-    {
-        return m_certList.end();
-    }
+    const_iterator end() const;
 
     /*
      * This function will return the last certificate from collection.
@@ -156,12 +148,9 @@ class CertificateCollection
      * Note: There is no point to call this function if certificate
      * collection is not sorted!
      */
-    inline CertificatePtr back() const
-    {
-        return m_certList.back();
-    }
+    CertificatePtr back() const;
 
-  protected:
+protected:
     void sortCollection(void);
 
     enum CollectionStatus
@@ -179,6 +168,7 @@ class CertificateCollection
 };
 
 typedef std::list<CertificateCollection> CertificateCollectionList;
+
 } // namespace ValidationCore
 
-#endif // _WRT_ENGINE_SRC_VALIDATION_CORE_CERTIFICATECHAIN_H_
+#endif // _VALIDATION_CORE_CERTIFICATECHAIN_H_

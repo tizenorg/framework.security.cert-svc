@@ -24,34 +24,30 @@
 #ifndef _SRC_VALIDATION_CORE_CACHED_OCSP_
 #define _SRC_VALIDATION_CORE_CACHED_OCSP_
 
-#include "OCSP.h"
-#include "IAbstractResponseCache.h"
+#include <vcore/OCSP.h>
+#include <vcore/IAbstractResponseCache.h>
 
 namespace ValidationCore {
 
 class CachedOCSP : public IAbstractResponseCache {
   public:
     // cache can't be refreshed more frequently than OCSP_minTimeValid
-    static const time_t OCSP_minTimeValid;
-
+    static time_t getOCSPMinTimeValid();
     // to be even more secure, cache will be refreshed for certificate at least
     // after OCSP_minTimeValid from last response
-    static const time_t OCSP_maxTimeValid;
+    static time_t getOCSPMaxTimeValid();
 
     // upon cache refresh, responses that will be invalid in OCSP_refreshBefore
     // seconds will be refreshed
-    static const time_t OCSP_refreshBefore;
+    static time_t getOCSPRefreshBefore();
 
     VerificationStatus check(const CertificateCollection &certs);
     VerificationStatus checkEndEntity(CertificateCollection &certs);
     void updateCache();
 
-    CachedOCSP()
-    {
-    }
-    virtual ~CachedOCSP()
-    {
-    }
+    CachedOCSP();
+
+    virtual ~CachedOCSP();
 
   private:
 

@@ -25,6 +25,8 @@
  * This function is needed to fix "Invalid conversion from void* to unsigned char*"
  * C++ compiler error during calling i2d_OCSP_REQUEST_bio macro
  */
+int convertToBuffer(OCSP_REQUEST *req, char **buf, int *size);
+
 int convertToBuffer(OCSP_REQUEST *req, char **buf, int *size) {
     BIO *req_mem_bio;
     BUF_MEM req_bmem;

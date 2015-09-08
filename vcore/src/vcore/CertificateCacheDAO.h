@@ -30,8 +30,8 @@
 
 #include <dpl/exception.h>
 
-#include "VerificationStatus.h"
-#include "CRLCacheInterface.h"
+#include <vcore/VerificationStatus.h>
+#include <vcore/CRLCacheInterface.h>
 
 namespace ValidationCore {
 
@@ -52,7 +52,7 @@ class CertificateCacheDAO {
     class Exception
     {
       public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
+        DECLARE_EXCEPTION_TYPE(VcoreDPL::Exception, Base)
         DECLARE_EXCEPTION_TYPE(Base, DatabaseError)
     };
 

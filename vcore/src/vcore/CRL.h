@@ -14,91 +14,39 @@
  *    limitations under the License.
  */
 /*!
- * @author      Piotr Marcinkiewicz(p.marcinkiew@samsung.com)
- * @version     0.4
+ * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @version     0.5
  * @file        CRL.h
  * @brief       Routines for certificate validation over CRL
  */
 
-#ifndef WRT_ENGINE_SRC_VALIDATION_CORE_ENGINE_CRL_H_
-#define WRT_ENGINE_SRC_VALIDATION_CORE_ENGINE_CRL_H_
+#ifndef _VALIDATION_CORE_ENGINE_CRL_H_
+#define _VALIDATION_CORE_ENGINE_CRL_H_
 
-#include <dpl/exception.h>
-#include <dpl/shared_ptr.h>
-#include <dpl/noncopyable.h>
-#include <dpl/log/log.h>
+#include <list>
+#include <string>
 
-#include "Certificate.h"
-#include "CertificateCollection.h"
-#include "SoupMessageSendBase.h"
-#include "VerificationStatus.h"
-#include "CRLCacheInterface.h"
+#include <vcore/Certificate.h>
+#include <vcore/CertificateCollection.h>
+#include <vcore/VerificationStatus.h>
+#include <vcore/CRLCacheInterface.h>
+#include <vcore/exception.h>
 
 namespace ValidationCore {
 namespace CRLException {
-DECLARE_EXCEPTION_TYPE(DPL::Exception, CRLException)
-DECLARE_EXCEPTION_TYPE(CRLException, StorageError)
-DECLARE_EXCEPTION_TYPE(CRLException, DownloadFailed)
-DECLARE_EXCEPTION_TYPE(CRLException, InternalError)
-DECLARE_EXCEPTION_TYPE(CRLException, InvalidParameter)
-}
+VCORE_DECLARE_EXCEPTION_TYPE(ValidationCore::Exception, Base)
+VCORE_DECLARE_EXCEPTION_TYPE(Base, StorageError)
+VCORE_DECLARE_EXCEPTION_TYPE(Base, InternalError)
+VCORE_DECLARE_EXCEPTION_TYPE(Base, InvalidParameter)
 
-class CRL : DPL::Noncopyable
-{
-  protected:
-    X509_STORE *m_store;
-    X509_LOOKUP *m_lookup;
-    CRLCacheInterface *m_crlCache;
+} // namespace CRLException
 
-    class CRLData : DPL::Noncopyable
-    {
-      public:
-        //TODO: change to SharedArray when available
-        char *buffer;
-        size_t length;
-        std::string uri;
+class CRLImpl;
 
-        CRLData(char* _buffer,
-                size_t _length,
-                const std::string &_uri) :
-            buffer(_buffer),
-            length(_length),
-            uri(_uri)
-        {
-        }
-
-        CRLData(const SoupWrapper::SoupMessageSendBase::MessageBuffer &mBuff,
-                const std::string &mUri)
-        : uri(mUri)
-        {
-            buffer = new char[mBuff.size()];
-            length = mBuff.size();
-            memcpy(buffer, &mBuff[0], mBuff.size());
-        }
-
-        ~CRLData()
-        {
-            LogInfo("Delete buffer");
-            delete[] buffer;
-        }
-    };
-    typedef DPL::SharedPtr<CRLData> CRLDataPtr;
+class CRL {
+public:
     typedef std::list<std::string> StringList;
 
-    CRLDataPtr getCRL(const std::string &uri) const;
-    CRLDataPtr downloadCRL(const std::string &uri);
-    X509_STORE_CTX *createContext(const CertificatePtr &argCert);
-    void updateCRL(const CRLDataPtr &crl);
-    X509_CRL *convertToInternal(const CRLDataPtr &crl) const;
-    StringList getCrlUris(const CertificatePtr &argCert);
-    bool isPEMFormat(const CRLDataPtr &crl) const;
-    bool verifyCRL(X509_CRL *crl,
-                   const CertificatePtr &cert);
-    void cleanup();
-    bool isOutOfDate(const CRLDataPtr &crl) const;
-
-    friend class CachedCRL;
-  public:
     enum UpdatePolicy
     {
         UPDATE_ON_EXPIRED,  /**< Download and update CRL only when next update
@@ -114,8 +62,9 @@ class CRL : DPL::Noncopyable
         bool isRevoked;     /**< True when certificate is revoked */
     };
 
+    CRL() = delete;
     CRL(CRLCacheInterface *ptr);
-    ~CRL();
+    virtual ~CRL();
 
     /**
      * @brief Checks if given certificate is revoked.
@@ -196,7 +145,14 @@ class CRL : DPL::Noncopyable
      *            added to known certificate store.
      */
     void addToStore(const CertificatePtr &argCert);
-};
-} // ValidationCore
+private:
+    friend class CachedCRL;
+    CRLImpl *m_impl;
 
-#endif //ifndef WRT_ENGINE_SRC_VALIDATION_CORE_ENGINE_CRL_H_
+    CRL(const CRL &);
+    const CRL &operator=(const CRL &);
+};
+
+} // namespace ValidationCore
+
+#endif // _VALIDATION_CORE_ENGINE_CRL_H_

@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-#include "Config.h"
+#include <vcore/Config.h>
 
 #include <dpl/singleton_impl.h>
 IMPLEMENT_SINGLETON(ValidationCore::Config)

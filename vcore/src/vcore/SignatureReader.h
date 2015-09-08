@@ -19,45 +19,33 @@
  * @version     1.0
  * @brief       SignatureReader is used to parse widget digital signature.
  */
-#ifndef _SIGNATUREREADER_H_
-#define _SIGNATUREREADER_H_
+#ifndef _VALIDATION_CORE_SIGNATUREREADER_H_
+#define _VALIDATION_CORE_SIGNATUREREADER_H_
+
+#include <vcore/SignatureData.h>
+#include <vcore/ParserSchema.h>
+#include <vcore/exception.h>
 
 #include <map>
-#include  <dpl/log/log.h>
-
-#include "SignatureData.h"
-#include "ParserSchema.h"
 
 namespace ValidationCore {
-class SignatureReader
-{
-  public:
-    class Exception
-    {
-      public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
-        DECLARE_EXCEPTION_TYPE(Base, TargetRestrictionException)
+
+class SignatureReader {
+public:
+    class Exception {
+    public:
+        VCORE_DECLARE_EXCEPTION_TYPE(ValidationCore::Exception, Base);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, TargetRestriction);
     };
 
     SignatureReader();
 
-    void initialize(SignatureData &data,
-            const std::string &xmlscheme)
-    {
-        m_parserSchema.initialize(
-            data.getSignatureFileName(), true, SaxReader::VALIDATION_XMLSCHEME,
-            xmlscheme);
-    }
+    void initialize(SignatureData &signatureData, const std::string &xmlscheme);
 
-    void read(SignatureData &data)
-    {
-        m_parserSchema.read(data);
-    }
+    void read(SignatureData &signatureData);
 
-  private:
-    void blankFunction(SignatureData &)
-    {
-    }
+private:
+    void blankFunction(SignatureData &signatureData);
 
     void tokenKeyInfo(SignatureData &signatureData);
     void tokenKeyModulus(SignatureData &signatureData);
@@ -70,15 +58,20 @@ class SignatureReader
     void tokenProfile(SignatureData &signatureData);
     void tokenObject(SignatureData &signatureData);
     void tokenSignatureProperties(SignatureData &signatureData);
+
     void tokenTargetRestriction(SignatureData &signatureData);
 
     void tokenEndKeyInfo(SignatureData &signatureData);
     // KW     void tokenEndKeyName(SignatureData &signatureData);
+
     void tokenEndRSAKeyValue(SignatureData &signatureData);
+
     void tokenEndKeyModulus(SignatureData &signatureData);
     void tokenEndKeyExponent(SignatureData &signatureData);
     void tokenEndX509Data(SignatureData &signatureData);
+
     void tokenEndX509Certificate(SignatureData &signatureData);
+
     void tokenEndPublicKey(SignatureData &signatureData);
     void tokenEndECKeyValue(SignatureData &signatureData);
     void tokenEndIdentifier(SignatureData &signatureData);
@@ -119,4 +112,4 @@ class SignatureReader
 };
 }
 
-#endif
+#endif // _VALIDATION_CORE_SIGNATUREREADER_H_

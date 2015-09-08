@@ -20,23 +20,44 @@
  * @brief       This file is the implementation file of main
  */
 #include <dpl/test/test_runner.h>
+
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+#include <dpl/db/orm.h>
+#endif
+
 #include <vcore/VCore.h>
 
-#include <libsoup/soup.h> // includes headers with g_type_init
+#include <glib-object.h>
 
 int main (int argc, char *argv[])
 {
-    g_type_init();
-//    g_thread_init(NULL);
-    ValidationCore::VCoreInit(
-        "/usr/share/wrt-engine/fingerprint_list.xml",
-        "/usr/share/wrt-engine/fingerprint_list.xsd",
-        "/opt/dbspace/.vcore.db");
-    ValidationCore::AttachToThreadRW();
-    int status = DPL::Test::TestRunnerSingleton::Instance().ExecTestRunner(argc, argv);
-    ValidationCore::DetachFromThread();
-    ValidationCore::VCoreDeinit();
+	int status = -1;
 
-    return status;
+	g_type_init();
+//	g_thread_init(NULL);
+	ValidationCore::VCoreInit(
+		"/usr/share/wrt-engine/fingerprint_list.xml",
+		"/usr/share/wrt-engine/fingerprint_list.xsd",
+		"/opt/dbspace/.cert_svc_vcore.db");
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	Try
+	{
+#endif
+		ValidationCore::AttachToThreadRW();
+		status = VcoreDPL::Test::TestRunnerSingleton::Instance().ExecTestRunner(argc, argv);
+		ValidationCore::DetachFromThread();
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+	}
+	Catch(VcoreDPL::ThreadLocalVariable<VcoreDPL::DB::SqlConnection*>::Exception::NullReference)
+	{
+		status = -1;
+	}catch(...)
+	{
+		return 0;
+	}
+#endif
+	ValidationCore::VCoreDeinit();
+
+	return status;
 }
 

@@ -36,6 +36,11 @@ typedef struct CertSvcStringList_t {
 } CertSvcStringList;
 
 typedef struct CertSvcString_t {
+    /*
+     * You are not allowed to use private fields of this structure. It is internal
+     * implementation of strings and it may change at any time without notice!
+     * To extract data use certsvc_string_to_cstring function!
+     */
     char* privateHandler;
     int privateLength;
     CertSvcInstance privateInstance;

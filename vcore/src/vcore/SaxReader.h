@@ -18,37 +18,33 @@
  * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
  * @version     1.0
  * @brief       Simple c++ interface for libxml2.
+ *              Its used in wrt-installer only and should be removed
+ *              from cert-svc.
  */
 #ifndef _SAXREADER_H_
 #define _SAXREADER_H_
 
 #include <string>
 #include <libxml/xmlreader.h>
-#include <dpl/exception.h>
+
+#include <vcore/exception.h>
 
 namespace ValidationCore {
-class SaxReader
-{
-  public:
+class SaxReader {
+public:
     SaxReader();
     ~SaxReader();
 
-    /*
-     * custom exceptions
-     */
-    class Exception
-    {
-      public:
-        DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
-        DECLARE_EXCEPTION_TYPE(Base, FileOpeningError)
-        DECLARE_EXCEPTION_TYPE(Base, FileNotValid)
-        DECLARE_EXCEPTION_TYPE(Base, ParserInternalError)
-        DECLARE_EXCEPTION_TYPE(Base, WrongToken)
-        DECLARE_EXCEPTION_TYPE(Base, ParserInternalErrorInReadingAttribute)
-        DECLARE_EXCEPTION_TYPE(Base, ParserInternalErrorInEmptyQuery)
-        DECLARE_EXCEPTION_TYPE(Base, ErrorReadingValue)
-        DECLARE_EXCEPTION_TYPE(Base, ErrorReadingName)
-        DECLARE_EXCEPTION_TYPE(Base, UnsupportedType)
+    class Exception {
+    public:
+        VCORE_DECLARE_EXCEPTION_TYPE(ValidationCore::Exception, Base);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, FileOpeningError);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, FileNotValid);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, ParserInternalError);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, WrongToken);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, ReadingValueError);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, ReadingNameError);
+        VCORE_DECLARE_EXCEPTION_TYPE(Base, UnsupportedType);
     };
 
     enum NodeType
@@ -78,7 +74,8 @@ class SaxReader
     /*
      * initializes parser
      */
-    void initialize(const std::string &filename,
+    void initialize(
+            const std::string &filename,
             bool defaultArgs = false,
             ValidationType validation = VALIDATION_DISABLE,
             const std::string &schema = std::string());
@@ -93,8 +90,8 @@ class SaxReader
     bool next();
 
     /**
-     * Move to next xml node. If next node name is differ from token the exception will
-     * be thrown.
+     * Move to next xml node. If next node name is differ from token the exception wiil
+     * be thronw.
      */
     void next(const std::string &token);
 
@@ -106,13 +103,7 @@ class SaxReader
     /**
      * Read attribute tag.
      */
-    std::string attribute(const std::string &token,
-            ThrowType throwStatus = THROW_ENABLE);
-
-    /**
-     * Read xml tag name with namespace.
-     */
-    // KW    std::string fullName();
+    std::string attribute(const std::string &token, ThrowType throwStatus = THROW_ENABLE);
 
     /**
      * Read xml tag name without namespace.
@@ -140,7 +131,7 @@ class SaxReader
      */
     void dumpNode(std::string &buffer);
 
-  private:
+private:
     /*
      * internal libxml text reader
      */

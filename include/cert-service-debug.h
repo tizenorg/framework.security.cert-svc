@@ -30,27 +30,12 @@ extern "C" {
 /*********************************************************************************/
 /* Logging                                                                       */
 /*********************************************************************************/
-#ifdef CERT_SVC_LOG
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
 #define LOG_TAG "CERT_SVC"
 #include <dlog.h>
 
-#elif CERT_SVC_LOG_CONSOLE
-#define SLOGV(FMT, ARG ...)	fprintf(stderr, FMT, ##ARG)
-#define SLOGD(FMT, ARG ...)	fprintf(stderr, FMT, ##ARG)
-#define SLOGI(FMT, ARG ...)	fprintf(stderr, FMT, ##ARG)
-#define SLOGE(FMT, ARG ...)	fprintf(stderr, FMT, ##ARG)
-#define SLOGW(FMT, ARG ...)	fprintf(stderr, FMT, ##ARG)
-#define SLOGF(FMT, ARG ...)	fprintf(stderr, FMT, ##ARG)
-
-#else
-#define SLOGV(FMT, ARG ...)	{}
-#define SLOGD(FMT, ARG ...)	{}
-#define SLOGI(FMT, ARG ...)	{}
-#define SLOGE(FMT, ARG ...)	{}
-#define SLOGW(FMT, ARG ...)	{}
-#define SLOGF(FMT, ARG ...)	{}
-
-#endif
 
 #ifdef __cplusplus
 }

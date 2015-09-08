@@ -22,23 +22,25 @@
 #ifndef _CERTSVC_C_API_EXTENDED_H_
 #define _CERTSVC_C_API_EXTENDED_H_
 
+#include <openssl/evp.h>
 #include <openssl/x509.h>
 
 #include <cert-svc/ccert.h>
+#include <cert-svc/cstring.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
- * This will return X509 struct(openssl base struct). This struct must be release by function
+ * This will return pointer to X509 base openssl struct. This struct must be release by function
  * certsvc_certificate_free_x509.
  *
  * vcore_instance_free or vcore_instance_reset will not free memory allocated by this function!
  *
  * @param[in] certificate Pointer to certificate.
  * @param[out] cert Duplicate of certificate.
- * @return X509 CERTSVC_SUCCESS, CERTSVC_WRONG_ARGUMENT, CERTSVC_FAIL
+ * @return CERTSVC_SUCCESS, CERTSVC_WRONG_ARGUMENT, CERTSVC_FAIL
  */
 int certsvc_certificate_dup_x509(CertSvcCertificate certificate, X509** cert);
 
@@ -48,6 +50,22 @@ int certsvc_certificate_dup_x509(CertSvcCertificate certificate, X509** cert);
  * @param[in] x509_copy Pointer to openssl struct.
  */
 void certsvc_certificate_free_x509(X509 *x509_copy);
+
+/**
+ * This will return pointer to EVP_PKEY base openssl struct. This struct must
+ * be release with function certsvc_pkcs12_free_evp_pkey
+ *
+ * @param[in] instance
+ * @param[in] alias Pkcs12 identificator.
+ * @param[out] pkey Duplicate of private key.
+ * @return CERTSVC_SUCCESS, CERT_FAIL
+ */
+
+int certsvc_pkcs12_dup_evp_pkey(CertSvcInstance instance,
+                                CertSvcString alias,
+                                EVP_PKEY** pkey);
+
+void certsvc_pkcs12_free_evp_pkey(EVP_PKEY* pkey);
 
 #ifdef __cplusplus
 }

@@ -22,14 +22,14 @@
  * @brief      Common interface for OCSP/CRL caches
  */
 
-#ifndef _SRC_VALIDATION_CORE_IABSTRACT_RESPONSE_CACHE_H_
-#define _SRC_VALIDATION_CORE_IABSTRACT_RESPONSE_CACHE_H_
+#ifndef _VALIDATION_CORE_IABSTRACT_RESPONSE_CACHE_H_
+#define _VALIDATION_CORE_IABSTRACT_RESPONSE_CACHE_H_
 
-#include "Certificate.h"
-#include "CertificateCollection.h"
-#include "VerificationStatus.h"
+#include <vcore/VerificationStatus.h>
 
 namespace ValidationCore {
+
+class CertificateCollection;
 
 class IAbstractResponseCache {
   public:
@@ -44,4 +44,4 @@ class IAbstractResponseCache {
 
 } // namespace ValidationCore
 
-#endif /* _SRC_VALIDATION_CORE_IABSTRACT_RESPONSE_CACHE_H_ */
+#endif /* _VALIDATION_CORE_IABSTRACT_RESPONSE_CACHE_H_ */

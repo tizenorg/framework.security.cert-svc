@@ -38,7 +38,7 @@ const char DefaultBundlePatch[] = "/opt/etc/ssl/certs/ca-certificates.crt";
 namespace ValidationCore {
 CertificatePtr RevocationCheckerBase::loadPEMFile(const char* fileName)
 {
-    DPL::ScopedFClose fd(fopen(fileName, "rb"));
+    VcoreDPL::ScopedFClose fd(fopen(fileName, "rb"));
 
     // no such file, return NULL
     if (!fd.Get()) {

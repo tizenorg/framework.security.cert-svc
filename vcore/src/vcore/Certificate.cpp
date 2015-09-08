@@ -19,7 +19,7 @@
  * @version     1.0
  * @brief
  */
-#include "Certificate.h"
+#include <vcore/Certificate.h>
 
 #include <memory>
 #include <sstream>
@@ -31,130 +31,18 @@
 #include <dpl/assert.h>
 #include <dpl/log/log.h>
 
-#include <Base64.h>
+#include <vcore/Base64.h>
+#include <vcore/TimeConversion.h>
 
 namespace ValidationCore {
-
-int asn1TimeToTimeT(ASN1_TIME *t,
-                    time_t *res)
-{
-    struct tm tm;
-    int offset;
-
-    (*res) = 0;
-    if (!ASN1_TIME_check(t)) {
-        return -1;
-    }
-
-    memset(&tm, 0, sizeof(tm));
-
-#define g2(p) (((p)[0] - '0') * 10 + (p)[1] - '0')
-    if (t->type == V_ASN1_UTCTIME) {
-        Assert(t->length > 12);
-
-        /*   this code is copied from OpenSSL asn1/a_utctm.c file */
-        tm.tm_year = g2(t->data);
-        if (tm.tm_year < 50) {
-            tm.tm_year += 100;
-        }
-        tm.tm_mon = g2(t->data + 2) - 1;
-        tm.tm_mday = g2(t->data + 4);
-        tm.tm_hour = g2(t->data + 6);
-        tm.tm_min = g2(t->data + 8);
-        tm.tm_sec = g2(t->data + 10);
-        if (t->data[12] == 'Z') {
-            offset = 0;
-        } else {
-            Assert(t->length > 16);
-
-            offset = g2(t->data + 13) * 60 + g2(t->data + 15);
-            if (t->data[12] == '-') {
-                offset = -offset;
-            }
-        }
-        tm.tm_isdst = -1;
-    } else {
-        Assert(t->length > 14);
-
-        tm.tm_year = g2(t->data) * 100 + g2(t->data + 2);
-        tm.tm_mon = g2(t->data + 4) - 1;
-        tm.tm_mday = g2(t->data + 6);
-        tm.tm_hour = g2(t->data + 8);
-        tm.tm_min = g2(t->data + 10);
-        tm.tm_sec = g2(t->data + 12);
-        if (t->data[14] == 'Z') {
-            offset = 0;
-        } else {
-            Assert(t->length > 18);
-
-            offset = g2(t->data + 15) * 60 + g2(t->data + 17);
-            if (t->data[14] == '-') {
-                offset = -offset;
-            }
-        }
-        tm.tm_isdst = -1;
-    }
-#undef g2
-    (*res) = timegm(&tm) - offset * 60;
-    return 0;
-}
-
-int asn1GeneralizedTimeToTimeT(ASN1_GENERALIZEDTIME *tm,
-                               time_t *res)
-{
-    /*
-     * This code is based on following assumption:
-     * from openssl/a_gentm.c:
-     * GENERALIZEDTIME is similar to UTCTIME except the year is
-     * represented as YYYY. This stuff treats everything as a two digit
-     * field so make first two fields 00 to 99
-     */
-    const int DATE_BUFFER_LENGTH = 15; // YYYYMMDDHHMMSSZ
-
-    if (NULL == res || NULL == tm) {
-        LogError("NULL pointer");
-        return -1;
-    }
-
-    if (DATE_BUFFER_LENGTH != tm->length || NULL == tm->data) {
-        LogError("Invalid ASN1_GENERALIZEDTIME");
-        return -1;
-    }
-
-    struct tm time_s;
-    if (sscanf ((char*)tm->data,
-                "%4d%2d%2d%2d%2d%2d",
-                &time_s.tm_year,
-                &time_s.tm_mon,
-                &time_s.tm_mday,
-                &time_s.tm_hour,
-                &time_s.tm_min,
-                &time_s.tm_sec) < 6)
-    {
-        LogError("Could not extract time data from ASN1_GENERALIZEDTIME");
-        return -1;
-    }
-
-    time_s.tm_year -= 1900;
-    time_s.tm_mon -= 1;
-    time_s.tm_isdst = 0;   // UTC
-    time_s.tm_gmtoff = 0;  // UTC
-    time_s.tm_zone = NULL; // UTC
-
-    *res = mktime(&time_s);
-
-    return 0;
-}
 
 Certificate::Certificate(X509 *cert)
 {
     Assert(cert);
     m_x509 = X509_dup(cert);
-    if (!m_x509) {
-        LogWarning("Internal Openssl error in d2i_X509 function.");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Internal Openssl error in d2i_X509 function.");
-    }
+    if (!m_x509)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Internal Openssl error in d2i_X509 function.");
 }
 
 Certificate::Certificate(cert_svc_mem_buff &buffer)
@@ -162,11 +50,9 @@ Certificate::Certificate(cert_svc_mem_buff &buffer)
     Assert(buffer.data);
     const unsigned char *ptr = buffer.data;
     m_x509 = d2i_X509(NULL, &ptr, buffer.size);
-    if (!m_x509) {
-        LogWarning("Internal Openssl error in d2i_X509 function.");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Internal Openssl error in d2i_X509 function.");
-    }
+    if (!m_x509)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Internal Openssl error in d2i_X509 function.");
 }
 
 Certificate::Certificate(const std::string &der,
@@ -182,7 +68,9 @@ Certificate::Certificate(const std::string &der,
         Base64Decoder base64;
         base64.reset();
         base64.append(der);
-        base64.finalize();
+        if (!base64.finalize()) {
+            LogWarning("Error during decoding");
+        }
         tmp = base64.get();
         ptr = reinterpret_cast<const unsigned char*>(tmp.c_str());
         size = static_cast<int>(tmp.size());
@@ -192,11 +80,9 @@ Certificate::Certificate(const std::string &der,
     }
 
     m_x509 = d2i_X509(NULL, &ptr, size);
-    if (!m_x509) {
-        LogError("Internal Openssl error in d2i_X509 function.");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Internal Openssl error in d2i_X509 function.");
-    }
+    if (!m_x509)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Internal Openssl error in d2i_X509 function.");
 }
 
 Certificate::~Certificate()
@@ -213,11 +99,9 @@ std::string Certificate::getDER(void) const
 {
     unsigned char *rawDer = NULL;
     int size = i2d_X509(m_x509, &rawDer);
-    if (!rawDer || size <= 0) {
-        LogError("i2d_X509 failed");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "i2d_X509 failed");
-    }
+    if (!rawDer || size <= 0)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "i2d_X509 failed");
 
     std::string output(reinterpret_cast<char*>(rawDer), size);
     OPENSSL_free(rawDer);
@@ -251,21 +135,15 @@ Certificate::Fingerprint Certificate::getFingerprint(
     Fingerprint raw;
 
     if (type == FINGERPRINT_MD5) {
-        if (!X509_digest(m_x509, EVP_md5(), fingerprint, &fingerprintlength)) {
-            LogError("MD5 digest counting failed!");
-            ThrowMsg(Exception::OpensslInternalError,
-                     "MD5 digest counting failed!");
-        }
+        if (!X509_digest(m_x509, EVP_md5(), fingerprint, &fingerprintlength))
+            VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                          "MD5 digest counting failed!");
     }
 
     if (type == FINGERPRINT_SHA1) {
-        if (!X509_digest(m_x509, EVP_sha1(), fingerprint,
-                         &fingerprintlength))
-        {
-            LogError("SHA1 digest counting failed");
-            ThrowMsg(Exception::OpensslInternalError,
-                     "SHA1 digest counting failed!");
-        }
+        if (!X509_digest(m_x509, EVP_sha1(), fingerprint, &fingerprintlength))
+            VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                          "SHA1 digest counting failed");
     }
 
     raw.resize(fingerprintlength); // improve performance
@@ -289,30 +167,28 @@ X509_NAME *Certificate::getX509Name(FieldType type) const
         Assert("Invalid field type.");
     }
 
-    if (!name) {
-        LogError("Error during x509 name extraction.");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error during x509 name extraction.");
-    }
+    if (!name)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error during x509 name extraction.");
 
     return name;
 }
 
-DPL::String Certificate::getOneLine(FieldType type) const
+std::string Certificate::getOneLine(FieldType type) const
 {
     X509_NAME *name = getX509Name(type);
     static const int MAXB = 1024;
-    char buffer[MAXB];
+    char buffer[MAXB] = {0, };
     X509_NAME_oneline(name, buffer, MAXB);
-    return DPL::FromUTF8String(buffer);
+
+    return std::string(buffer);
 }
 
-DPL::OptionalString Certificate::getField(FieldType type,
-                                     int fieldNid) const
+std::string Certificate::getField(FieldType type, int fieldNid) const
 {
     X509_NAME *subjectName = getX509Name(type);
     X509_NAME_ENTRY *subjectEntry = NULL;
-    DPL::Optional < DPL::String > output;
+    std::string output;
     int entryCount = X509_NAME_entry_count(subjectName);
 
     for (int i = 0; i < entryCount; ++i) {
@@ -337,54 +213,61 @@ DPL::OptionalString Certificate::getField(FieldType type,
         int nLength = ASN1_STRING_to_UTF8(&pData,
                                           pASN1Str);
 
-        if (nLength < 0) {
-            LogError("Reading field error.");
-            ThrowMsg(Exception::OpensslInternalError,
-                     "Reading field error.");
-        }
+        if (nLength < 0)
+            VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                          "Reading field error.");
 
-        std::string strEntry(reinterpret_cast<char*>(pData),
-                             nLength);
-        output = DPL::FromUTF8String(strEntry);
-        OPENSSL_free(pData);
+        if (!pData) {
+            output = std::string();
+        }
+        else {
+            output = std::string(reinterpret_cast<char*>(pData), nLength);
+            OPENSSL_free(pData);
+        }
     }
+
     return output;
 }
 
-DPL::OptionalString Certificate::getCommonName(FieldType type) const
+std::string Certificate::getCommonName(FieldType type) const
 {
     return getField(type, NID_commonName);
 }
 
-DPL::OptionalString Certificate::getCountryName(FieldType type) const
+std::string Certificate::getCountryName(FieldType type) const
 {
     return getField(type, NID_countryName);
 }
 
-DPL::OptionalString Certificate::getStateOrProvinceName(FieldType type) const
+std::string Certificate::getStateOrProvinceName(FieldType type) const
 {
     return getField(type, NID_stateOrProvinceName);
 }
 
-DPL::OptionalString Certificate::getLocalityName(FieldType type) const
+std::string Certificate::getLocalityName(FieldType type) const
 {
     return getField(type, NID_localityName);
 }
 
-DPL::OptionalString Certificate::getOrganizationName(FieldType type) const
+std::string Certificate::getOrganizationName(FieldType type) const
 {
     return getField(type, NID_organizationName);
 }
 
-DPL::OptionalString Certificate::getOrganizationalUnitName(FieldType type) const
+std::string Certificate::getOrganizationalUnitName(FieldType type) const
 {
     return getField(type, NID_organizationalUnitName);
 }
 
-DPL::OptionalString Certificate::getOCSPURL() const
+std::string Certificate::getEmailAddres(FieldType type) const
+{
+    return getField(type, NID_pkcs9_emailAddress);
+}
+
+std::string Certificate::getOCSPURL() const
 {
     // TODO verify this code
-    DPL::OptionalString retValue;
+    std::string retValue;
     AUTHORITY_INFO_ACCESS *aia = static_cast<AUTHORITY_INFO_ACCESS*>(
             X509_get_ext_d2i(m_x509,
                              NID_info_access,
@@ -404,10 +287,11 @@ DPL::OptionalString Certificate::getOCSPURL() const
         if (OBJ_obj2nid(ad->method) == NID_ad_OCSP &&
             ad->location->type == GEN_URI)
         {
-            void* data = ASN1_STRING_data(ad->location->d.ia5);
-            retValue = DPL::OptionalString(DPL::FromUTF8String(
-                    static_cast<char*>(data)));
-
+            void *data = ASN1_STRING_data(ad->location->d.ia5);
+            if (!data)
+                retValue = std::string();
+            else
+                retValue = std::string(static_cast<char *>(data));
             break;
         }
     }
@@ -428,11 +312,14 @@ Certificate::AltNameSet Certificate::getAlternativeNameDNS() const
     while (sk_GENERAL_NAME_num(san) > 0) {
         namePart = sk_GENERAL_NAME_pop(san);
         if (GEN_DNS == namePart->type) {
-            std::string temp =
-                reinterpret_cast<char*>(ASN1_STRING_data(namePart->d.dNSName));
-            DPL::String altDNSName = DPL::FromASCIIString(temp);
-            set.insert(altDNSName);
-            LogDebug("FOUND GEN_DNS: " << temp);
+            char *temp = reinterpret_cast<char *>(ASN1_STRING_data(namePart->d.dNSName));
+            if (!temp) {
+                set.insert(std::string());
+            }
+            else {
+                set.insert(std::string(temp));
+                LogDebug("FOUND GEN_DNS: " << temp);
+            }
         } else {
             LogDebug("FOUND GEN TYPE ID: " << namePart->type);
         }
@@ -443,41 +330,60 @@ Certificate::AltNameSet Certificate::getAlternativeNameDNS() const
 time_t Certificate::getNotAfter() const
 {
     ASN1_TIME *time = X509_get_notAfter(m_x509);
-    if (!time) {
-        LogError("Reading Not After error.");
-        ThrowMsg(Exception::OpensslInternalError, "Reading Not After error.");
-    }
+    if (!time)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Reading Not After error.");
+
     time_t output;
-    if (asn1TimeToTimeT(time, &output)) {
-        LogError("Converting ASN1_time to time_t error.");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Converting ASN1_time to time_t error.");
-    }
+    if (asn1TimeToTimeT(time, &output))
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Converting ASN1_time to time_t error.");
+
     return output;
 }
 
 time_t Certificate::getNotBefore() const
 {
     ASN1_TIME *time = X509_get_notBefore(m_x509);
-    if (!time) {
-        LogError("Reading Not Before error.");
-        ThrowMsg(Exception::OpensslInternalError, "Reading Not Before error.");
-    }
+    if (!time)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Reading Not Before error.");
+
     time_t output;
-    if (asn1TimeToTimeT(time, &output)) {
-        LogError("Converting ASN1_time to time_t error.");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Converting ASN1_time to time_t error.");
-    }
+    if (asn1TimeToTimeT(time, &output))
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Converting ASN1_time to time_t error.");
+
     return output;
+}
+
+ASN1_TIME* Certificate::getNotAfterTime() const
+{
+    ASN1_TIME *timeafter = X509_get_notAfter(m_x509);
+    if (!timeafter)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Reading Not After error.");
+
+    return timeafter;
+}
+
+ASN1_TIME* Certificate::getNotBeforeTime() const
+{
+    ASN1_TIME *timebefore = X509_get_notBefore(m_x509);
+    if (!timebefore)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Reading Not Before error.");
+
+    return timebefore;
 }
 
 bool Certificate::isRootCert()
 {
     // based on that root certificate has the same subject as issuer name
-    return isSignedBy(this->SharedFromThis());
+    return isSignedBy(this->shared_from_this());
 }
 
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 std::list<std::string>
 Certificate::getCrlUris() const
 {
@@ -525,20 +431,20 @@ Certificate::getCrlUris() const
     sk_DIST_POINT_pop_free(distPoints, DIST_POINT_free);
     return result;
 }
+#endif
 
 long Certificate::getVersion() const
 {
     return X509_get_version(m_x509);
 }
 
-DPL::String Certificate::getSerialNumberString() const
+std::string Certificate::getSerialNumberString() const
 {
     ASN1_INTEGER *ai = X509_get_serialNumber(m_x509);
-    if (NULL == ai) {
-        LogError("Error in X509_get_serialNumber");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in X509_get_serialNumber");
-    }
+    if (!ai)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in X509_get_serialNumber");
+
     std::stringstream stream;
     stream << std::hex << std::setfill('0');
     if (ai->type == V_ASN1_NEG_INTEGER) {
@@ -551,10 +457,11 @@ DPL::String Certificate::getSerialNumberString() const
     if (!data.empty()) {
         data.erase(--data.end());
     }
-    return DPL::FromUTF8String(data);
+
+    return data;
 }
 
-DPL::String Certificate::getKeyUsageString() const
+std::string Certificate::getKeyUsageString() const
 {
     // Extensions were defined in RFC 3280
     const char *usage[] = {
@@ -583,63 +490,84 @@ DPL::String Certificate::getKeyUsageString() const
     if (!result.empty()) {
         result.erase(--result.end());
     }
-    return DPL::FromUTF8String(result);
+
+    return result;
 }
 
-DPL::String Certificate::getSignatureAlgorithmString() const
+std::string Certificate::getSignatureAlgorithmString() const
 {
     std::unique_ptr<BIO, std::function<int(BIO*)>>
         b(BIO_new(BIO_s_mem()),BIO_free);
 
-    if (b.get() == NULL) {
-        LogError("Error in BIO_new");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in BIO_new");
-    }
-    if (i2a_ASN1_OBJECT(b.get(), m_x509->cert_info->signature->algorithm) < 0) {
-        LogError("Error in i2a_ASN1_OBJECT");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in i2a_ASN1_OBJECT");
-    }
+    if (!b.get())
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in BIO_new");
+
+    if (i2a_ASN1_OBJECT(b.get(), m_x509->cert_info->signature->algorithm) < 0)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in i2a_ASN1_OBJECT");
+
     BUF_MEM *bptr = 0;
     BIO_get_mem_ptr(b.get(), &bptr);
-    if (bptr == 0) {
-        LogError("Error in BIO_get_mem_ptr");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in BIO_get_mem_ptr");
-    }
+    if (bptr == 0)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in BIO_get_mem_ptr");
+
     std::string result(bptr->data, bptr->length);
-    return DPL::FromUTF8String(result);
+
+    return result;
 }
 
-DPL::String Certificate::getPublicKeyString() const
+std::string Certificate::getPublicKeyString() const
 {
     std::unique_ptr<BIO, std::function<int(BIO*)>>
         b(BIO_new(BIO_s_mem()),BIO_free);
 
-    if (b.get() == NULL) {
-        LogError("Error in BIO_new");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in BIO_new");
-    }
+    if (!b.get())
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in BIO_new");
+
     EVP_PKEY *pkey = X509_get_pubkey(m_x509);
-    if (pkey == NULL) {
-        LogError("Error in X509_get_pubkey");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in X509_get_pubkey");
-    }
+    if (!pkey)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in X509_get_pubkey");
+
     EVP_PKEY_print_public(b.get(), pkey, 16, NULL);
     EVP_PKEY_free(pkey);
 
     BUF_MEM *bptr = 0;
     BIO_get_mem_ptr(b.get(), &bptr);
-    if (bptr == 0) {
-        LogError("Error in BIO_get_mem_ptr");
-        ThrowMsg(Exception::OpensslInternalError,
-                 "Error in BIO_get_mem_ptr");
-    }
+    if (bptr == 0)
+        VcoreThrowMsg(Certificate::Exception::OpensslInternalError,
+                      "Error in BIO_get_mem_ptr");
+
     std::string result(bptr->data, bptr->length);
-    return DPL::FromUTF8String(result);
+
+    return result;
+}
+
+int Certificate::isCA() const
+{
+    return X509_check_ca(m_x509);
+}
+
+std::string Certificate::FingerprintToColonHex(
+        const Certificate::Fingerprint &fingerprint)
+{
+    std::string outString;
+    char buff[8];
+
+    for (size_t i = 0; i < fingerprint.size(); ++i) {
+        snprintf(buff,
+                 sizeof(buff),
+                 "%02X:",
+                 static_cast<unsigned int>(fingerprint[i]));
+        outString += buff;
+    }
+
+    // remove trailing ":"
+    outString.erase(outString.end() - 1);
+    return outString;
 }
 
 } //  namespace ValidationCore

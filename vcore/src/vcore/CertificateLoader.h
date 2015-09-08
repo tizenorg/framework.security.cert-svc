@@ -24,10 +24,10 @@
 
 #include <cert-service.h>
 
-#include "Certificate.h"
+#include <vcore/Certificate.h>
 
 namespace ValidationCore {
-class CertificateLoader : public DPL::Noncopyable
+class CertificateLoader : public VcoreDPL::Noncopyable
 {
   public:
     class CertificateLoaderComparator

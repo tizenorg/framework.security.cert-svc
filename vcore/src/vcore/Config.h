@@ -65,7 +65,7 @@ private:
     std::string m_certificateXMLSchemaPath;
 };
 
-typedef DPL::Singleton<Config> ConfigSingleton;
+typedef VcoreDPL::Singleton<Config> ConfigSingleton;
 
 } // namespace ValidationCore
 

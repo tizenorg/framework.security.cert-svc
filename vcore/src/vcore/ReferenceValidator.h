@@ -13,15 +13,22 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#ifndef _REFERENCEVALIDATOR_H_
-#define _REFERENCEVALIDATOR_H_
+/*
+ * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @file        ReferenceValidator.h
+ * @version     1.0
+ * @brief       Compare signature reference list with widget package.
+ */
+#ifndef _VALIDATION_CORE_REFERENCEVALIDATOR_H_
+#define _VALIDATION_CORE_REFERENCEVALIDATOR_H_
 
-#include <pcrecpp.h>
+#include <dpl/noncopyable.h>
 
-#include "SignatureData.h"
+#include <vcore/SignatureData.h>
 
 namespace ValidationCore {
-class ReferenceValidator
+
+class ReferenceValidator : VcoreDPL::Noncopyable
 {
   public:
     enum Result
@@ -30,31 +37,20 @@ class ReferenceValidator
         ERROR_OPENING_DIR,
         ERROR_READING_DIR,
         ERROR_UNSUPPORTED_FILE_TYPE,
-        ERROR_REFERENCE_NOT_FOUND
+        ERROR_REFERENCE_NOT_FOUND,
+        ERROR_DECODING_URL
     };
 
     ReferenceValidator(const std::string &dirpath);
 
-    virtual ~ReferenceValidator()
-    {
-    }
+    virtual ~ReferenceValidator();
 
     Result checkReferences(const SignatureData &signatureData);
 
   private:
-
-    Result dfsCheckDirectories(const SignatureData &signatureData,
-            const std::string &directory);
-
-    inline bool isDistributorSignature(const char *cstring) const
-    {
-        return m_signatureRegexp.FullMatch(cstring);
-    }
-
-    std::string m_dirpath;
-    std::string m_errorDescription;
-    pcrecpp::RE m_signatureRegexp;
+    class Impl;
+    Impl *m_impl;
 };
 }
 
-#endif // _REFERENCEVALIDATOR_H_
+#endif // _VALIDATION_CORE_REFERENCEVALIDATOR_H_

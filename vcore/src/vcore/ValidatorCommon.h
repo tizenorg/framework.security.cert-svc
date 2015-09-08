@@ -27,8 +27,6 @@
 #include <string>
 
 namespace ValidationCore {
-typedef std::set< std::string > ReferenceSet;
-typedef std::list< std::string > ObjectList;
 
 /*
  * base deleter func

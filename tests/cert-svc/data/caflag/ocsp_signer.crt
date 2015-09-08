@@ -1,0 +1,66 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 5 (0x5)
+    Signature Algorithm: sha1WithRSAEncryption
+        Issuer: C=KR, ST=Seoul, O=Samsung, OU=Tizen Test, CN=Test Second CA/emailAddress=tt@gmail.com
+        Validity
+            Not Before: Jun 18 08:11:46 2014 GMT
+            Not After : Jun 18 08:11:46 2015 GMT
+        Subject: C=KR, ST=Seoul, O=Samsung, OU=Tizen Test OCSP Response Signer, CN=OCSP Response Signer/emailAddress=tt@gmail.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:cb:b2:52:c6:6d:75:32:a3:41:e5:7a:3c:21:a0:
+                    fd:e5:9d:d5:42:fe:3b:7d:e7:7d:8f:6d:b6:75:22:
+                    39:51:9f:ba:2b:f2:ff:aa:9b:bc:4e:11:cc:42:1f:
+                    84:04:4d:8f:fa:a1:86:e0:80:54:8b:84:6e:58:b9:
+                    5c:f2:e2:99:3f:d4:e5:cd:d0:27:a3:f9:23:52:d1:
+                    d3:9d:59:ce:a3:db:2e:ce:6d:1d:6d:1b:a2:28:8c:
+                    52:c2:c1:57:30:41:0c:c1:b9:3a:66:75:e5:da:2a:
+                    41:cc:27:98:8b:03:f3:e6:a1:3e:ec:24:83:45:84:
+                    47:21:54:25:53:33:3b:6d:01
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Key Usage: 
+                Digital Signature, Non Repudiation, Key Encipherment
+            X509v3 Extended Key Usage: 
+                OCSP Signing
+            Netscape Comment: 
+                OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier: 
+                BD:88:26:A9:60:B7:BB:51:73:06:06:4B:72:52:F6:44:50:3B:EE:90
+            X509v3 Authority Key Identifier: 
+                keyid:A9:49:F3:5B:13:45:76:34:79:FF:57:97:FA:EB:4B:F6:71:6C:18:80
+
+    Signature Algorithm: sha1WithRSAEncryption
+         33:1f:11:ca:e8:01:2a:92:df:5c:07:98:f3:0c:5e:61:a8:6c:
+         58:47:6e:24:d1:01:da:ea:7c:40:2d:e8:89:38:e4:5a:12:cd:
+         3f:e0:24:bd:bb:79:f0:0f:8f:6f:72:21:d5:a2:18:89:24:f8:
+         61:98:ed:66:59:64:4d:da:9b:6f:20:0b:6e:a4:7f:b0:0b:f1:
+         ae:70:3a:54:0b:06:53:58:a0:28:22:67:78:4b:88:97:43:8d:
+         1c:58:d3:9b:77:49:6c:66:ed:46:01:e5:4f:6f:96:5a:e0:f8:
+         90:8c:6b:7d:cc:c6:45:6c:60:cf:2e:b0:c7:85:fe:21:41:67:
+         e5:48
+-----BEGIN CERTIFICATE-----
+MIIDJTCCAo6gAwIBAgIBBTANBgkqhkiG9w0BAQUFADB6MQswCQYDVQQGEwJLUjEO
+MAwGA1UECAwFU2VvdWwxEDAOBgNVBAoMB1NhbXN1bmcxEzARBgNVBAsMClRpemVu
+IFRlc3QxFzAVBgNVBAMMDlRlc3QgU2Vjb25kIENBMRswGQYJKoZIhvcNAQkBFgx0
+dEBnbWFpbC5jb20wHhcNMTQwNjE4MDgxMTQ2WhcNMTUwNjE4MDgxMTQ2WjCBlTEL
+MAkGA1UEBhMCS1IxDjAMBgNVBAgMBVNlb3VsMRAwDgYDVQQKDAdTYW1zdW5nMSgw
+JgYDVQQLDB9UaXplbiBUZXN0IE9DU1AgUmVzcG9uc2UgU2lnbmVyMR0wGwYDVQQD
+DBRPQ1NQIFJlc3BvbnNlIFNpZ25lcjEbMBkGCSqGSIb3DQEJARYMdHRAZ21haWwu
+Y29tMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLslLGbXUyo0HlejwhoP3l
+ndVC/jt9532PbbZ1IjlRn7or8v+qm7xOEcxCH4QETY/6oYbggFSLhG5YuVzy4pk/
+1OXN0Cej+SNS0dOdWc6j2y7ObR1tG6IojFLCwVcwQQzBuTpmdeXaKkHMJ5iLA/Pm
+oT7sJINFhEchVCVTMzttAQIDAQABo4GeMIGbMAkGA1UdEwQCMAAwCwYDVR0PBAQD
+AgXgMBMGA1UdJQQMMAoGCCsGAQUFBwMJMCwGCWCGSAGG+EIBDQQfFh1PcGVuU1NM
+IEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUvYgmqWC3u1FzBgZLclL2
+RFA77pAwHwYDVR0jBBgwFoAUqUnzWxNFdjR5/1eX+utL9nFsGIAwDQYJKoZIhvcN
+AQEFBQADgYEAMx8RyugBKpLfXAeY8wxeYahsWEduJNEB2up8QC3oiTjkWhLNP+Ak
+vbt58A+Pb3Ih1aIYiST4YZjtZllkTdqbbyALbqR/sAvxrnA6VAsGU1igKCJneEuI
+l0ONHFjTm3dJbGbtRgHlT2+WWuD4kIxrfczGRWxgzy6wx4X+IUFn5Ug=
+-----END CERTIFICATE-----

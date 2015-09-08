@@ -19,11 +19,12 @@
  * @version     1.0
  * @brief
  */
-#include "CertificateConfigReader.h"
 
-#include <cstdlib>
+#include <vcore/CertificateConfigReader.h>
 
 #include <dpl/assert.h>
+
+#include <cstdlib>
 
 namespace {
 const std::string XML_EMPTY_NAMESPACE = "";
@@ -33,10 +34,17 @@ const std::string TOKEN_CERTIFICATE_DOMAIN = "CertificateDomain";
 const std::string TOKEN_FINGERPRINT_SHA1 = "FingerprintSHA1";
 
 const std::string TOKEN_ATTR_NAME = "name";
-const std::string TOKEN_VALUE_WAC_ROOT = "wacroot";
-const std::string TOKEN_VALUE_WAC_PUBLISHER = "wacpublisher";
-const std::string TOKEN_VALUE_WAC_MEMBER = "wacmember";
-const std::string TOKEN_VALUE_DEVELOPER = "developer";
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+const std::string TOKEN_ATTR_URL_NAME = "ocspUrl";
+#endif
+const std::string TOKEN_VALUE_TIZEN_DEVELOPER = "tizen-developer";
+const std::string TOKEN_VALUE_TIZEN_TEST = "tizen-test";
+const std::string TOKEN_VALUE_TIZEN_VERIFY = "tizen-verify";
+const std::string TOKEN_VALUE_VISIBILITY_PUBLIC = "tizen-public";
+const std::string TOKEN_VALUE_VISIBILITY_PARTNER = "tizen-partner";
+const std::string TOKEN_VALUE_VISIBILITY_PARTNER_OPERATOR = "tizen-partner-operator";
+const std::string TOKEN_VALUE_VISIBILITY_PARTNER_MANUFACTURER = "tizen-partner-manufacturer";
+const std::string TOKEN_VALUE_VISIBILITY_PLATFORM = "tizen-platform";
 
 int hexCharToInt(char c)
 {
@@ -54,9 +62,9 @@ int hexCharToInt(char c)
 } // anonymous namespace
 
 namespace ValidationCore {
-CertificateConfigReader::CertificateConfigReader() :
-    m_certificateDomain(0),
-    m_parserSchema(this)
+CertificateConfigReader::CertificateConfigReader()
+  : m_certificateDomain(0)
+  , m_parserSchema(this)
 {
     m_parserSchema.addBeginTagCallback(
         TOKEN_CERTIFICATE_SET,
@@ -89,29 +97,57 @@ CertificateConfigReader::CertificateConfigReader() :
         &CertificateConfigReader::tokenEndFingerprintSHA1);
 }
 
+void CertificateConfigReader::initialize(
+    const std::string &file,
+    const std::string &scheme)
+{
+    m_parserSchema.initialize(file, true, SaxReader::VALIDATION_XMLSCHEME, scheme);
+}
+
+void CertificateConfigReader::read(CertificateIdentifier &identificator)
+{
+    m_parserSchema.read(identificator);
+}
+
+void CertificateConfigReader::blankFunction(CertificateIdentifier &)
+{
+}
+
 void CertificateConfigReader::tokenCertificateDomain(CertificateIdentifier &)
 {
-    std::string name = m_parserSchema.getReader().
-            attribute(TOKEN_ATTR_NAME, SaxReader::THROW_DISABLE);
+    std::string name = m_parserSchema.getReader().attribute(TOKEN_ATTR_NAME);
 
     if (name.empty()) {
-        LogWarning("Invalid fingerprint file. Domain name is mandatory");
-        ThrowMsg(Exception::InvalidFile,
-                 "Invalid fingerprint file. Domain name is mandatory");
-    } else if (name == TOKEN_VALUE_DEVELOPER) {
-        m_certificateDomain = CertStoreId::DEVELOPER;
-    } else if (name == TOKEN_VALUE_WAC_ROOT) {
-        m_certificateDomain = CertStoreId::WAC_ROOT;
-    } else if (name == TOKEN_VALUE_WAC_PUBLISHER) {
-        m_certificateDomain = CertStoreId::WAC_PUBLISHER;
-    } else if (name == TOKEN_VALUE_WAC_MEMBER) {
-        m_certificateDomain = CertStoreId::WAC_MEMBER;
+        VcoreThrowMsg(CertificateConfigReader::Exception::InvalidFile,
+                      "Invalid fingerprint file. Domain name is mandatory");
+    } else if (name == TOKEN_VALUE_TIZEN_DEVELOPER) {
+        m_certificateDomain = CertStoreId::TIZEN_DEVELOPER;
+    } else if (name == TOKEN_VALUE_TIZEN_TEST) {
+        m_certificateDomain = CertStoreId::TIZEN_TEST;
+    } else if (name == TOKEN_VALUE_TIZEN_VERIFY) {
+        m_certificateDomain = CertStoreId::TIZEN_VERIFY;
+    } else if (name == TOKEN_VALUE_VISIBILITY_PUBLIC) {
+        m_certificateDomain = CertStoreId::VIS_PUBLIC;
+    } else if (name == TOKEN_VALUE_VISIBILITY_PARTNER) {
+        m_certificateDomain = CertStoreId::VIS_PARTNER;
+    } else if (name == TOKEN_VALUE_VISIBILITY_PARTNER_OPERATOR) {
+        m_certificateDomain = CertStoreId::VIS_PARTNER_OPERATOR;
+    } else if (name == TOKEN_VALUE_VISIBILITY_PARTNER_MANUFACTURER) {
+        m_certificateDomain = CertStoreId::VIS_PARTNER_MANUFACTURER;
+    } else if (name == TOKEN_VALUE_VISIBILITY_PLATFORM) {
+        m_certificateDomain = CertStoreId::VIS_PLATFORM;
+    } else {
+        m_certificateDomain = 0;
     }
 }
 
 void CertificateConfigReader::tokenEndFingerprintSHA1(
         CertificateIdentifier &identificator)
 {
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    std::string url = m_parserSchema.getReader().attribute(TOKEN_ATTR_URL_NAME);
+#endif
+
     std::string text = m_parserSchema.getText();
     text += ":"; // add guard at the end of fingerprint
     Certificate::Fingerprint fingerprint;
@@ -133,6 +169,10 @@ void CertificateConfigReader::tokenEndFingerprintSHA1(
             Assert(0 && "Unussported fingerprint format in xml file.");
         }
     }
+
     identificator.add(fingerprint, m_certificateDomain);
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    identificator.add(fingerprint, url);
+#endif
 }
 } // namespace ValidationCore

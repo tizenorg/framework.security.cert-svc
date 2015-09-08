@@ -20,12 +20,10 @@
  * @brief
  */
 
-#ifndef _WRT_OCSP_CERT_MGR_UTIL_H_
-#define _WRT_OCSP_CERT_MGR_UTIL_H_
+#ifndef _OCSP_CERT_MGR_UTIL_H_
+#define _OCSP_CERT_MGR_UTIL_H_
 
-#include <openssl/x509.h>
-
-#include "Certificate.h"
+#include <vcore/Certificate.h>
 
 namespace ValidationCore {
 namespace OCSPCertMgrUtil {

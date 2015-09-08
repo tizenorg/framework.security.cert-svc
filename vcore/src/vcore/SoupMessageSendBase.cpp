@@ -19,7 +19,7 @@
  * @file        SoupMessageSendBase.cpp
  * @brief       Simple wrapper for soup.
  */
-#include "SoupMessageSendBase.h"
+#include <vcore/SoupMessageSendBase.h>
 
 #include <dpl/assert.h>
 #include <dpl/foreach.h>

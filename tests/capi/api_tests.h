@@ -22,8 +22,10 @@
 
 #include <cert-svc/cinstance.h>
 #include <cert-svc/ccert.h>
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 #include <cert-svc/ccrl.h>
 #include <cert-svc/cocsp.h>
+#endif
 #include <cert-svc/cpkcs12.h>
 #include <cert-svc/cprimitives.h>
 

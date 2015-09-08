@@ -14,54 +14,61 @@
  *    limitations under the License.
  */
 /*
- * @file
  * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @file        CertStoreType.h
  * @version     1.0
- * @brief
+ * @brief       Identification of certificate domain. Certificate domains
+ *              were defined in WAC 1.0 documentation. This is a part
+ *              should be implemented in wrt-installer.
  */
-#ifndef _WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_CERTSTORETYPE_H_
-#define _WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_CERTSTORETYPE_H_
+#ifndef _VALIDATION_CORE_CERTSTORETYPE_H_
+#define _VALIDATION_CORE_CERTSTORETYPE_H_
+
+#include <string>
 
 namespace ValidationCore {
 namespace CertStoreId {
 typedef unsigned int Type;
 
 // RootCA certificates for developer mode.
-const Type DEVELOPER = 1;
+const Type TIZEN_DEVELOPER = 1;
 // RootCA certificates for author signatures.
-const Type WAC_PUBLISHER = 1 << 1;
-// RootCA certificates for wac-signed widgets.
-const Type WAC_ROOT = 1 << 2;
-// RootCA certificates for wac-members ie. operators, manufacturers.
-const Type WAC_MEMBER = 1 << 3;
+const Type TIZEN_TEST = 1 << 1;
+const Type TIZEN_VERIFY = 1 << 2;
+// RootCA's visibility level : public
+const Type VIS_PUBLIC = 1 << 6;
+// RootCA's visibility level : partner
+const Type VIS_PARTNER = 1 << 7;
+// RootCA's visibility level : partner-operator
+const Type VIS_PARTNER_OPERATOR = 1 << 8;
+// RootCA's visibility level : partner-manufacturer
+const Type VIS_PARTNER_MANUFACTURER = 1 << 9;
+// RootCA's visibility level : platform
+const Type VIS_PLATFORM = 1 << 10;
 
-class Set
-{
-  public:
-    Set() :
-        m_certificateStorage(0)
-    {
-    }
+class Set {
+public:
+    Set();
+    virtual ~Set();
 
-    void add(Type second)
-    {
-        m_certificateStorage |= second;
-    }
+    void add(Type second);
 
-    bool contains(Type second) const
-    {
-        return static_cast<bool>(m_certificateStorage & second);
-    }
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    void add(std::string ocspUrl);
+    char* getOcspUrl();
+#endif
 
-    bool isEmpty() const
-    {
-        return m_certificateStorage == 0;
-    }
+    bool contains(Type second) const;
+    bool isEmpty() const;
 
   private:
     Type m_certificateStorage;
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+    char* m_ocspUrl;
+#endif
 };
+
 } // namespace CertStoreId
 } // namespace ValidationCore
 
-#endif //  _WRT_ENGINE_SRC_INSTALLER_CORE_VALIDATION_CORE_CERTSTORETYPE_H_
+#endif //  _VALIDATION_CORE_CERTSTORETYPE_H_

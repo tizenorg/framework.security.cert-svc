@@ -101,13 +101,13 @@ int certsvc_pkcs12_load_certificate_list(CertSvcInstance instance,
  * @param[in] instance CertSvcInstance object.
  * @param[in] prfIdString Container bundle identifier.
  * @param[out] buffer Poiner to newly-allocated memory with private key data.
- * @param[out] size Size of the newly-allocated buffer.
+ * @param[out] size Size of the newly-allocated buffer. Zero means there is no key.
  * @return CERTSVC_SUCCESS, CERTSVC_FAIL, CERTSVC_IO_ERROR, CERTSVC_WRONG_ARGUMENT
  */
 int certsvc_pkcs12_private_key_dup(CertSvcInstance instance,
                                    CertSvcString alias,
                                    char **buffer,
-                                   int *size);
+                                   size_t *size);
 
 /**
  * Couter-routine for certsvc_pkcs12_private_key_dup.

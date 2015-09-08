@@ -20,7 +20,8 @@
  * @brief       DeveloperModeValidatorValidator - implementing WAC 2.0 spec, including TargetRestriction
  */
 
-#include "DeveloperModeValidator.h"
+#include <vcore/DeveloperModeValidator.h>
+
 #include <algorithm>
 #include <vconf.h>
 #include <dpl/log/log.h>
@@ -68,16 +69,6 @@ void DeveloperModeValidator::check(const SignatureData &data)
 
     if (!IMEIList.empty()) {
         std::string phoneIMEIString = m_fakeIMEI;
-        if (!m_complianceModeEnabled) {
-            LogDebug("Compilance Mode is not enabled");
-            DPL::ScopedFree<char> phoneIMEI(
-                vconf_get_str(VCONFKEY_TELEPHONY_IMEI));
-            if (!phoneIMEI.Get()) {
-                ThrowMsg(Exception::NoTargetRestrictionSatisfied,
-                         "Unable to get phone IMEI from vconf.");
-            }
-            phoneIMEIString = phoneIMEI.Get();
-        }
 
         LogDebug("Phone IMEI: " << phoneIMEIString);
         if (IMEIList.end() ==

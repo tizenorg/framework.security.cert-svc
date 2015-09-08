@@ -20,32 +20,27 @@
 INCLUDE(FindPkgConfig)
 SET(TARGET_VCOREC_TEST "cert-svc-tests-capi")
 
-PKG_CHECK_MODULES(VCOREC_TEST_DEP
-    libsoup-2.4
-    dpl-test-efl
-    dpl-db-efl
-    libpcrecpp
-    REQUIRED
-    )
-
 SET(VCOREC_TESTS_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/capi/api_tests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/capi/test_cases.cpp
+    ${PROJECT_SOURCE_DIR}/tests/capi/test_suite_01.cpp
+    ${PROJECT_SOURCE_DIR}/tests/capi/test_suite_02.cpp
+    ${VCORE_DPL_SOURCES}
     )
 
 INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/vcore/src
     ${PROJECT_SOURCE_DIR}/tests/capi
+    ${PROJECT_SOURCE_DIR}/include
     ${VCOREC_TEST_DEP_INCLUDE_DIRS}
+    ${VCORE_DPL_INCLUDE}
     )
 
 ADD_EXECUTABLE(${TARGET_VCOREC_TEST} ${VCOREC_TESTS_SOURCES})
 
-ADD_DEFINITIONS("-DDPL_LOGS_ENABLED")
-
 TARGET_LINK_LIBRARIES(${TARGET_VCOREC_TEST}
     ${TARGET_VCORE_LIB}
-    ${VCOREC_TEST_DEP_LIBRARIES}
+    ${TARGET_CERT_SVC_LIB}
+    ${VCORE_TEST_DEP_LIBRARIES}
     )
 
 INSTALL(TARGETS ${TARGET_VCOREC_TEST}
@@ -64,6 +59,17 @@ INSTALL(FILES
     ${PROJECT_SOURCE_DIR}/tests/capi/data/cert_b.pem
     ${PROJECT_SOURCE_DIR}/tests/capi/data/pkey.pem
     DESTINATION /opt/share/cert-svc/pkcs12/test1st
+    PERMISSIONS OWNER_READ
+                GROUP_READ
+                WORLD_READ
+    )
+
+INSTALL(FILES
+    ${PROJECT_SOURCE_DIR}/tests/capi/data/cert0.pem
+    ${PROJECT_SOURCE_DIR}/tests/capi/data/cert1.der
+    ${PROJECT_SOURCE_DIR}/tests/capi/data/cert2fake.pem
+    ${PROJECT_SOURCE_DIR}/tests/capi/data/cert3fake.der
+    DESTINATION /opt/share/cert-svc/cert-type/
     PERMISSIONS OWNER_READ
                 GROUP_READ
                 WORLD_READ

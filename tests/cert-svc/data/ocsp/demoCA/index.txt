@@ -1,0 +1,6 @@
+V	150618081051Z		00	unknown	/C=KR/ST=Seoul/O=Samsung/OU=Tizen Test/CN=Test Root CA/emailAddress=tt@gmail.com
+V	150618081059Z		01	unknown	/C=KR/ST=Seoul/O=Samsung/OU=Tizen Test/CN=Test Second CA/emailAddress=tt@gmail.com
+V	150618081104Z		02	unknown	/C=KR/ST=Seoul/O=Samsung/OU=Tizen Test AIA/CN=Test Signer/emailAddress=tt@gmail.com
+R	150618081114Z	140618081114Z	03	unknown	/C=KR/ST=Seoul/O=Samsung/OU=Tizen Test REVOKED/CN=Test Signer/emailAddress=tt@gmail.com
+V	150618081129Z		04	unknown	/C=KR/ST=Seoul/O=Samsung/OU=Tizen Test NO AIA/CN=Test Signer/emailAddress=tt@gmail.com
+V	150618081146Z		05	unknown	/C=KR/ST=Seoul/O=Samsung/OU=Tizen Test OCSP Response Signer/CN=OCSP Response Signer/emailAddress=tt@gmail.com

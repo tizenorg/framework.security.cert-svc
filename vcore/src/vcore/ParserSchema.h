@@ -25,25 +25,23 @@
 #include <map>
 #include <string>
 
-#include <dpl/log/log.h>
-
-#include "SaxReader.h"
+#include <vcore/SaxReader.h>
+#include <vcore/exception.h>
 
 namespace ValidationCore {
 namespace ParserSchemaException {
-DECLARE_EXCEPTION_TYPE(DPL::Exception, Base)
-DECLARE_EXCEPTION_TYPE(Base, XmlReaderError)
-DECLARE_EXCEPTION_TYPE(Base, CertificateLoaderError)
-DECLARE_EXCEPTION_TYPE(Base, UnsupportedAlgorithm)
-DECLARE_EXCEPTION_TYPE(Base, UnsupportedValue)
+    VCORE_DECLARE_EXCEPTION_TYPE(ValidationCore::Exception, Base);
+    VCORE_DECLARE_EXCEPTION_TYPE(Base, XmlReaderError);
+    VCORE_DECLARE_EXCEPTION_TYPE(Base, CertificateLoaderError);
+    VCORE_DECLARE_EXCEPTION_TYPE(Base, UnsupportedAlgorithm);
+    VCORE_DECLARE_EXCEPTION_TYPE(Base, UnsupportedValue);
 }
 
 template<typename ParserType, typename DataType>
-class ParserSchema
-{
-  public:
-    struct TagDescription
-    {
+class ParserSchema {
+public:
+
+    struct TagDescription {
         TagDescription(const std::string &tag,
                 const std::string & xmlNamespace) :
             tagName(tag),
@@ -69,27 +67,25 @@ class ParserSchema
         }
     };
 
-    ParserSchema(ParserType * parser) :
-        m_functions(parser)
-    {
-    }
 
-    virtual ~ParserSchema()
-    {
-    }
+    ParserSchema(ParserType *parser)
+      : m_functions(parser) {}
 
-    void initialize(const std::string &filename,
+    virtual ~ParserSchema() {}
+
+    void initialize(
+            const std::string &filename,
             bool defaultArgs,
             SaxReader::ValidationType valType,
             const std::string &xmlschema)
     {
-        Try
+        VcoreTry
         {
             m_reader.initialize(filename, defaultArgs, valType, xmlschema);
         }
-        Catch(SaxReader::Exception::Base)
+        VcoreCatch (SaxReader::Exception::Base)
         {
-            ReThrowMsg(ParserSchemaException::XmlReaderError, "XmlReaderError");
+            VcoreReThrowMsg(ParserSchemaException::XmlReaderError, "XmlReaderError");
         }
     }
 
@@ -100,7 +96,8 @@ class ParserSchema
 
     void read(DataType &dataContainer)
     {
-        Try {
+        VcoreTry
+        {
             while (m_reader.next()) {
                 switch (m_reader.type()) {
                 case SaxReader::NODE_BEGIN:
@@ -113,21 +110,21 @@ class ParserSchema
                     textNode(dataContainer);
                     break;
                 default:
-                    //              LogInfo("Unknown Type Node");
                     break;
                 }
             }
         }
-        Catch(SaxReader::Exception::Base)
+        VcoreCatch (SaxReader::Exception::Base)
         {
-            ReThrowMsg(ParserSchemaException::XmlReaderError, "XmlReaderError");
+            VcoreReThrowMsg(ParserSchemaException::XmlReaderError, "XmlReaderError");
         }
     }
 
     typedef void (ParserType::*FunctionPtr)(DataType &data);
     typedef std::map<TagDescription, FunctionPtr> FunctionMap;
 
-    void addBeginTagCallback(const std::string &tag,
+    void addBeginTagCallback(
+            const std::string &tag,
             const std::string &namespaceUri,
             FunctionPtr function)
     {
@@ -135,7 +132,8 @@ class ParserSchema
         m_beginFunctionMap[desc] = function;
     }
 
-    void addEndTagCallback(const std::string &tag,
+    void addEndTagCallback(
+            const std::string &tag,
             const std::string &namespaceUri,
             FunctionPtr function)
     {
@@ -143,24 +141,23 @@ class ParserSchema
         m_endFunctionMap[desc] = function;
     }
 
-    SaxReader& getReader(void)
+    SaxReader& getReader()
     {
         return m_reader;
     }
 
-    std::string& getText(void)
+    std::string& getText()
     {
         return m_textNode;
     }
 
-  protected:
+protected:
     void beginNode(DataType &dataContainer)
     {
         TagDescription desc(m_reader.name(), m_reader.namespaceURI());
         FunctionPtr fun = m_beginFunctionMap[desc];
 
         if (fun == 0) {
-            LogDebug("No function found for xml tag: " << m_reader.name());
             return;
         }
 
@@ -173,7 +170,6 @@ class ParserSchema
         FunctionPtr fun = m_endFunctionMap[desc];
 
         if (fun == 0) {
-            LogDebug("No function found for xml tag: " << m_reader.name());
             return;
         }
 
@@ -187,7 +183,6 @@ class ParserSchema
     }
 
     ParserType *m_functions;
-
     SaxReader m_reader;
     FunctionMap m_beginFunctionMap;
     FunctionMap m_endFunctionMap;
@@ -195,5 +190,6 @@ class ParserSchema
     // temporary values require due parsing textNode
     std::string m_textNode;
 };
+
 } // namespace ValidationCore
 #endif

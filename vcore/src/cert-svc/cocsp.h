@@ -35,8 +35,8 @@ extern "C" {
 #define CERTSVC_OCSP_UNKNOWN             (1<<2)
 #define CERTSVC_OCSP_VERIFICATION_ERROR  (1<<3)
 #define CERTSVC_OCSP_NO_SUPPORT          (1<<4)
-#define CERTSVC_OCSP_ERROR               (1<<5)
-
+#define CERTSVC_OCSP_CONNECTION_FAILED   (1<<5)
+#define CERTSVC_OCSP_ERROR               (1<<6)
 /**
  * Implementation of ocsp call.
  *

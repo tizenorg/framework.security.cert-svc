@@ -17,34 +17,62 @@
  *
  * @file       CachedCRL.cpp
  * @author     Tomasz Swierczek (t.swierczek@samsung.com)
- * @version    0.1
+ * @version    0.2
  * @brief      Cached CRL class implementation
  */
-
-#include <string>
-#include <time.h>
+#include <vcore/CachedCRL.h>
 
 #include <dpl/foreach.h>
 #include <dpl/log/log.h>
 #include <dpl/foreach.h>
 
-#include "CRL.h"
-#include "CachedCRL.h"
-#include "Certificate.h"
-#include "CertificateCacheDAO.h"
-#include "CRLCacheDAO.h"
+#include <vcore/CRLImpl.h>
+#include <vcore/CertificateCacheDAO.h>
+#include <vcore/CRLCacheDAO.h>
+
+namespace {
+
+const time_t CRL_minTimeValid = 3600;          // one hour in seconds
+
+const time_t CRL_maxTimeValid = 3600 * 24 * 7; // one week in seconds
+
+const time_t CRL_refreshBefore = 3600;         // one hour in seconds
+
+time_t getNextUpdateTime(time_t now, time_t response_validity)
+{
+    time_t min = now + CRL_minTimeValid;
+    time_t max = now + CRL_maxTimeValid;
+    if (response_validity < min) {
+        return min;
+    }
+    if (response_validity > max) {
+        return max;
+    }
+    return response_validity;
+}
+
+} // namespace anonymous
 
 namespace ValidationCore {
 
-const time_t CachedCRL::CRL_minTimeValid = 3600;          // one hour in seconds
+time_t CachedCRL::getCRLMinTimeValid() {
+    return CRL_minTimeValid;
+}
 
-const time_t CachedCRL::CRL_maxTimeValid = 3600 * 24 * 7; // one week in seconds
+time_t CachedCRL::getCRLMaxTimeValid() {
+    return CRL_maxTimeValid;
+}
 
-const time_t CachedCRL::CRL_refreshBefore = 3600;         // one hour in seconds
+time_t CachedCRL::getCRLRefreshBefore() {
+    return CRL_refreshBefore;
+}
+
+CachedCRL::CachedCRL(){}
+CachedCRL::~CachedCRL(){}
 
 VerificationStatus CachedCRL::check(const CertificateCollection &certs)
 {
-    CRL crl(new CRLCacheDAO);
+    CRLImpl crl(new CRLCacheDAO);
     bool allValid = true;
     // we dont check CRL validity since
     // we may use crl for longer time
@@ -88,7 +116,7 @@ VerificationStatus CachedCRL::checkEndEntity(CertificateCollection &certs)
         LogDebug("Status ERROR");
         return VERIFICATION_STATUS_ERROR;
     }
-    CRL crl(new CRLCacheDAO);
+    CRLImpl crl(new CRLCacheDAO);
     bool allValid = true;
     // we dont check CRL validity since
     // we may use crl for longer time
@@ -124,8 +152,9 @@ void CachedCRL::updateCache()
     }
 }
 
-bool CachedCRL::updateCRLForUri(const std::string & uri, bool useExpiredShift)
+bool CachedCRL::updateCRLForUri(const std::string &uri, bool useExpiredShift)
 {
+    using namespace ValidationCore;
     CRLCachedData cachedCRL;
     cachedCRL.distribution_point = uri;
     time_t now;
@@ -140,8 +169,8 @@ bool CachedCRL::updateCRLForUri(const std::string & uri, bool useExpiredShift)
         }
     }
     // need to download new CRL
-    CRL crl(new CRLCacheDAO);
-    CRL::CRLDataPtr list = crl.downloadCRL(uri);
+    CRLImpl crl(new CRLCacheDAO);
+    CRLImpl::CRLDataPtr list = crl.downloadCRL(uri);
     if (!list) {
         LogWarning("Could not retreive CRL from " << uri);
         return false;
@@ -154,19 +183,6 @@ bool CachedCRL::updateCRLForUri(const std::string & uri, bool useExpiredShift)
                                         cachedCRL.crl_body,
                                         cachedCRL.next_update_time);
     return true;
-}
-
-time_t CachedCRL::getNextUpdateTime(time_t now, time_t response_validity)
-{
-    time_t min = now + CRL_minTimeValid;
-    time_t max = now + CRL_maxTimeValid;
-    if (response_validity < min) {
-        return min;
-    }
-    if (response_validity > max) {
-        return max;
-    }
-    return response_validity;
 }
 
 } // namespace ValidationCore

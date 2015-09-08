@@ -28,19 +28,42 @@
 #include <dpl/log/log.h>
 #include <dpl/foreach.h>
 
-#include "OCSP.h"
-#include "CachedOCSP.h"
-#include "Certificate.h"
-#include "CertificateCacheDAO.h"
+#include <vcore/OCSP.h>
+#include <vcore/OCSPImpl.h>
+#include <vcore/CachedOCSP.h>
+#include <vcore/Certificate.h>
+#include <vcore/CertificateCacheDAO.h>
+
+namespace {
+
+// one hour in seconds
+const time_t OCSP_minTimeValid = 3600;      // one hour in seconds
+
+// one week in seconds
+const time_t OCSP_maxTimeValid = 3600 * 24 * 7;
+
+// one hour in seconds
+const time_t OCSP_refreshBefore = 3600;
+
+} // anonymous namespace
 
 namespace ValidationCore {
 
-const time_t CachedOCSP::OCSP_minTimeValid = 3600;      // one hour in seconds
+time_t CachedOCSP::getOCSPMinTimeValid() {
+    return OCSP_minTimeValid;
+}
 
-const time_t CachedOCSP::OCSP_maxTimeValid =
-        3600 * 24 * 7;                                  // one week in seconds
+time_t CachedOCSP::getOCSPMaxTimeValid() {
+    return OCSP_maxTimeValid;
+}
 
-const time_t CachedOCSP::OCSP_refreshBefore = 3600;     // one hour in seconds
+time_t CachedOCSP::getOCSPRefreshBefore() {
+    return OCSP_refreshBefore;
+}
+
+CachedOCSP::CachedOCSP(){}
+
+CachedOCSP::~CachedOCSP(){}
 
 VerificationStatus CachedOCSP::check(const CertificateCollection &certs)
 {
@@ -99,13 +122,6 @@ VerificationStatus CachedOCSP::checkEndEntity(CertificateCollection &certs)
 
     OCSP ocsp;
     ocsp.setTrustedStore(certs.getCertificateList());
-
-    const char *defResponderURI = getenv(OCSP::DEFAULT_RESPONDER_URI_ENV);
-
-    if (defResponderURI) {
-        ocsp.setUseDefaultResponder(true);
-        ocsp.setDefaultResponder(defResponderURI);
-    }
 
     VerificationStatusSet statusSet = ocsp.validateCertificateList(clst);
     db_status.ocsp_status = statusSet.convertToStatus();

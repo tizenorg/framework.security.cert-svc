@@ -13,8 +13,14 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#ifndef _SRC_VALIDATION_CORE_VERIFICATION_STATUS_H_
-#define _SRC_VALIDATION_CORE_VERIFICATION_STATUS_H_
+/*!
+ * @author      Bartlomiej Grzelewski (b.grzelewski@samsung.com)
+ * @version     0.2
+ * @file        VerificationStatus.h
+ * @brief       OCSP/CRL status.
+ */
+#ifndef _VALIDATION_CORE_VERIFICATION_STATUS_H_
+#define _VALIDATION_CORE_VERIFICATION_STATUS_H_
 
 namespace ValidationCore {
 enum VerificationStatus
@@ -62,34 +68,17 @@ enum VerificationStatus
 class VerificationStatusSet
 {
   public:
-    VerificationStatusSet() : m_verdictMap(0)
-    {
-    }
+    VerificationStatusSet();
 
-    inline void add(VerificationStatus status)
-    {
-        m_verdictMap |= status;
-    }
+    void add(VerificationStatus status);
 
-    inline bool contains(VerificationStatus status) const
-    {
-        return m_verdictMap & status;
-    }
+    bool contains(VerificationStatus status) const;
 
-    inline bool isEmpty() const
-    {
-        return 0 == m_verdictMap;
-    }
+    bool isEmpty() const;
 
-    inline void operator+=(const VerificationStatusSet &second)
-    {
-        m_verdictMap |= second.m_verdictMap;
-    }
+    void operator+=(const VerificationStatusSet &second);
 
-    inline void reset()
-    {
-        m_verdictMap = 0;
-    }
+    void reset();
 
     VerificationStatus convertToStatus() const;
 
@@ -106,6 +95,7 @@ enum WidgetVerificationStatus
     // Some certificate has been revoked. Widget is not able to be installed.
     WIDGET_VERIFICATION_STATUS_REVOKED,
 };
+
 } // namespace ValidationCore
 
-#endif // _SRC_VALIDATION_CORE_VERIFICATION_STATUS_H_
+#endif // _VALIDATION_CORE_VERIFICATION_STATUS_H_
