@@ -15,7 +15,7 @@
  */
 #include <dpl/assert.h>
 #include <openssl/x509v3.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 #include <dpl/noncopyable.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
@@ -45,7 +45,7 @@ namespace ValidationCore {
 //        m_initialized = CertificateLoader::convertBase64NodeToBigNum(publicKey, &m_searchKey);
 //
 //        if(!m_initialized)
-//            LogError("Init failed!");
+//            WrtLogE("Init failed!");
 //    }
 //
 //    virtual bool compare(X509 *x509cert){
@@ -60,7 +60,7 @@ namespace ValidationCore {
 //            return false;
 //
 //        if(m_ecPublicKey->type != EVP_PKEY_EC){
-//            LogError("ecPublicKey has wrong type!");
+//            WrtLogE("ecPublicKey has wrong type!");
 //            return false;
 //        }
 //
@@ -109,7 +109,7 @@ namespace ValidationCore {
 //        m_initialized_exponent = CertificateLoader::convertBase64NodeToBigNum(m_exponent, &m_exponent_bn);
 //
 //        if(!m_initialized_modulus || !m_initialized_exponent)
-//            LogError("Init failed!");
+//            WrtLogE("Init failed!");
 //    }
 //
 //    virtual bool compare(X509 *x509cert){
@@ -124,7 +124,7 @@ namespace ValidationCore {
 //            return false;
 //
 //        if(m_rsaPublicKey->type != EVP_PKEY_RSA){
-//            LogInfo("rsaPublicKey has wrong type!");
+//            WrtLogI("rsaPublicKey has wrong type!");
 //            return false;
 //        }
 //
@@ -133,7 +133,7 @@ namespace ValidationCore {
 //
 //        if (BN_cmp(m_modulus_bn, rsa->n) == 0 &&
 //            BN_cmp(m_exponent_bn, rsa->e) == 0 ){
-//            LogError ("Compare TRUE");
+//            WrtLogE ("Compare TRUE");
 //            return true;
 //        }
 //        return false;
@@ -162,7 +162,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 {
     (void) m_modulus;
     (void) m_exponent;
-    LogError("Not implemented.");
+    WrtLogE("Not implemented.");
     return UNKNOWN_ERROR;
     //    if (m_exponent.empty() || m_modulus.empty())
     //        return WRONG_ARGUMENTS;
@@ -188,7 +188,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificate(
 {
     (void) storageName;
     (void) cmp;
-    LogError("Not Implemented");
+    WrtLogE("Not Implemented");
     return UNKNOWN_ERROR;
     //    long int result = OPERATION_SUCCESS;
     //
@@ -217,7 +217,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificate(
     //    {
     //
     //        if(OPERATION_SUCCESS!=certmgr_extract_certificate_data(&certRetrieved, &descriptor)){
-    //            LogError("Extracting Certificate Data failed \n");
+    //            WrtLogE("Extracting Certificate Data failed ");
     //            continue;
     //        }
     //
@@ -226,35 +226,35 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificate(
     //        X509 *x509cert = d2i_X509(NULL, &ptr, certRetrieved.size);
     //        if(x509cert == NULL){
     //            certmgr_release_certificate_data(&descriptor);
-    //            LogError("Error extracting certificate (d2i_X509).");
+    //            WrtLogE("Error extracting certificate (d2i_X509).");
     //            return UNKNOWN_ERROR;
     //        }
     //
-    //        LogDebug("The subject of this certificate is " << descriptor.mandatory.subject);
+    //        WrtLogD("The subject of this certificate is %s", (descriptor.mandatory.subject));
     //        if(cmp->compare(x509cert)){
-    //            LogDebug("Found match. Coping bytes: " << certRetrieved.size);
+    //            WrtLogD("Found match. Coping bytes: %d", certRetrieved.size);
     //            m_certificatePtr = CertificatePtr(new Certificate(certRetrieved));
     //            certmgr_release_certificate_data(&descriptor);
     //            X509_free(x509cert);
     //            break;
     //        }
     //
-    //        LogDebug("Release");
+    //        WrtLogD("Release");
     //        X509_free(x509cert);
     //        certmgr_release_certificate_data(&descriptor);
     //    }
     //
     //    if(ERR_NO_MORE_CERTIFICATES == result){
-    //        LogError("Certificates for given DN not found\n");
+    //        WrtLogE("Certificates for given DN not found");
     //        return CERTIFICATE_NOT_FOUND;
     //    }
     //
     //    if(result!= OPERATION_SUCCESS){
-    //        LogError("Certificate Manager Error\n");
+    //        WrtLogE("Certificate Manager Error");
     //        return UNKNOWN_ERROR;
     //    }
     //
-    //    LogDebug("Exit");
+    //    WrtLogD("Exit");
     //    return NO_ERROR;
 }
 
@@ -263,7 +263,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     loadCertificateBasedOnSubjectName(const std::string &subjectName)
 {
     (void) subjectName;
-    LogError("Not implemented.");
+    WrtLogE("Not implemented.");
     return UNKNOWN_ERROR;
     //    if(subjectName.empty())
     //    {
@@ -295,29 +295,29 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     //    {
     //
     //        if(OPERATION_SUCCESS!=certmgr_extract_certificate_data(&certRetrieved, &descriptor)){
-    //            LogError("Extracting Certificate Data failed \n");
+    //            WrtLogE("Extracting Certificate Data failed ");
     //            continue;
     //        }
     //
     //        if(!strcmp(subjectName.c_str(), descriptor.mandatory.subject)){
-    //            LogDebug("The subject of this certificate is " << descriptor.mandatory.subject);
+    //            WrtLogD("The subject of this certificate is %s", descriptor.mandatory.subject);
     //            m_certificatePtr = CertificatePtr(new Certificate(certRetrieved));
     //            certmgr_release_certificate_data(&descriptor);
     //            break;
     //        }
-    //        LogDebug("Release");
+    //        WrtLogD("Release");
     //        certmgr_release_certificate_data(&descriptor);
     //    }
     //
     //    if(ERR_NO_MORE_CERTIFICATES == result) {
-    //        LogError("Certificates for given DN not found\n");
+    //        WrtLogE("Certificates for given DN not found");
     //        return CERTIFICATE_NOT_FOUND;
     //    }
     //    if(result!= OPERATION_SUCCESS){
-    //        LogError("Certificate Manager Error\n");
+    //        WrtLogE("Certificate Manager Error");
     //        return UNKNOWN_ERROR;
     //    }
-    //    LogDebug("Exit");
+    //    WrtLogD("Exit");
     //    return NO_ERROR;
 }
 
@@ -333,7 +333,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 // KW         memset(&m_cmBuff, 0, sizeof(certmgr_mem_buff));
 // KW     }
 // KW
-// KW     LogDebug("IssuerName: " << issuerName << " serialNumber: " << serialNumber);
+// KW     WrtLogD("IssuerName: %s , serialNumber: %s", issuerName.c_str(), serialNumber.c_str());
 // KW
 // KW     //used to check status of retrieved certificate
 // KW     long int result = OPERATION_SUCCESS;
@@ -359,14 +359,14 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 // KW         certRetrieved.firstFree = 0)
 // KW     {
 // KW
-// KW         LogDebug("Extracting certificate from CertMgr");
+// KW         WrtLogD("Extracting certificate from CertMgr");
 // KW
 // KW         if( OPERATION_SUCCESS != certmgr_extract_certificate_data(&certRetrieved, &descriptor) ){
-// KW             LogError("Extracting Certificate Data failed \n");
+// KW             WrtLogE("Extracting Certificate Data failed ");
 // KW             continue;
 // KW         }
 // KW
-// KW         LogDebug("Issuer: " << descriptor.mandatory.issuer);
+// KW         WrtLogD("Issuer: %s", (descriptor.mandatory.issuer).c_str());
 // KW
 // KW         const unsigned char *ptr = certRetrieved.data;
 // KW         char *tmp;
@@ -376,13 +376,13 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 // KW         OPENSSL_free(tmp);
 // KW         X509_free(x509cert);
 // KW
-// KW         LogInfo("Certificate number found: " << serialNO);
-// KW         LogInfo("Certificate number looking for: " << serialNumber);
+// KW         WrtLogI("Certificate number found: %d", serialNO);
+// KW         WrtLogI("Certificate number looking for: %d", serialNumber);
 // KW
 // KW         if(!strcmp(issuerName.c_str(), descriptor.mandatory.issuer)
 // KW               && serialNumber == serialNO)
 // KW         {
-// KW             LogError("The issuer of this certificate is " << descriptor.mandatory.issuer);
+// KW             WrtLogE("The issuer of this certificate is %s", (descriptor.mandatory.issuer).c_str());
 // KW
 // KW             m_cmBuff.data = new unsigned char[certRetrieved.size];
 // KW             m_cmBuff.firstFree = m_cmBuff.size = certRetrieved.size;
@@ -394,11 +394,11 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 // KW     }
 // KW
 // KW     if(ERR_NO_MORE_CERTIFICATES == result) {
-// KW         LogError("Certificates not found");
+// KW         WrtLogE("Certificates not found");
 // KW         return CERTIFICATE_NOT_FOUND;
 // KW     }
 // KW     if(result != OPERATION_SUCCESS){
-// KW         LogError("Certificate Manager Error");
+// KW         WrtLogE("Certificate Manager Error");
 // KW         return UNKNOWN_ERROR;
 // KW     }
 // KW     return NO_ERROR;
@@ -410,10 +410,10 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 {
     (void) curveName;
     (void) publicKey;
-    LogError("Not implemented.");
+    WrtLogE("Not implemented.");
     return UNKNOWN_ERROR;
     //    if(curveName != OID_CURVE_SECP256R1){
-    //        LogError("Found field id: " << curveName << " Expected: " << OID_CURVE_SECP256R1);
+    //        WrtLogE("Found field id: %s Expected:", curveName.c_str(), OID_CURVE_SECP256R1.c_str());
     //        return UNSUPPORTED_CERTIFICATE_FIELD;
     //    }
     //
@@ -434,9 +434,12 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
 
 CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificateFromRawData(const std::string &rawData)
 {
-    m_certificatePtr = CertificatePtr(new Certificate(rawData, Certificate::FORM_BASE64));
-    if (!m_certificatePtr->getX509())
+    VcoreTry {
+        m_certificatePtr = CertificatePtr(new Certificate(rawData, Certificate::FORM_BASE64));
+    } VcoreCatch(Certificate::Exception::Base) {
+        WrtLogW("Error reading certificate by openssl.");
         return UNKNOWN_ERROR;
+    }
 
     // Check the key length if sig algorithm is RSA
     EVP_PKEY *pKey = X509_get_pubkey(m_certificatePtr->getX509());
@@ -450,11 +453,11 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificateFro
 
                 // key Length (modulus) is in bytes
                 keyLength <<= 3;
-                LogDebug("RSA key length: " << keyLength << " bits");
+                WrtLogD("RSA key length: %d bits", keyLength);
 
                 if (keyLength < MIN_RSA_KEY_LENGTH) {
-                    LogError(
-                        "RSA key too short!" << "Has only " << keyLength << " bits");
+                    WrtLogE(
+                        "RSA key too short! Has only %d bits", keyLength);
                          return CERTIFICATE_SECURITY_ERROR;
                 }
             }
@@ -480,7 +483,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificateFro
 //
 //    if (result != OPERATION_SUCCESS)
 //    {
-//        LogError("Unable to load certificate");
+//        WrtLogE("Unable to load certificate");
 //        return UNKNOWN_ERROR;
 //    }
 //
@@ -509,11 +512,11 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::loadCertificateFro
 //
 //                // key Length (modulus) is in bytes
 //                keyLength <<= 3;
-//                LogDebug("RSA key length: " << keyLength << " bits");
+//                WrtLogD("RSA key length: %d bits", keyLength);
 //
 //                if (keyLength < MIN_RSA_KEY_LENGTH)
 //                {
-//                    LogError("RSA key too short!" << "Has only " << keyLength << " bits");
+//                    WrtLogE("RSA key too short! Has only %d bits.", keyLength);
 //                    return CERTIFICATE_SECURITY_ERROR;
 //                }
 //            }
@@ -539,7 +542,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     (void) strJ;
     (void) strSeed;
     (void) strPGenCounter;
-    LogError("Not implemented.");
+    WrtLogE("Not implemented.");
     return UNKNOWN_ERROR;
     //    (void)strY;
     //    (void)strJ;
@@ -575,7 +578,7 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     //
     //        if (OPERATION_SUCCESS != certmgr_extract_certificate_data(&certRetrieved, &descriptor))
     //        {
-    //            LogDebug("unable to retrieve cert from storage");
+    //            WrtLogD("unable to retrieve cert from storage");
     //            continue;
     //        }
     //
@@ -602,9 +605,9 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     //                      BN_cmp(pDSAqBigNum, pDSA->q) == 0 &&
     //                      BN_cmp(pDSAgBigNum, pDSA->g) == 0)
     //                    {
-    //                        LogInfo("DSA Certificate found");
+    //                        WrtLogI("DSA Certificate found");
     //                        /* TODO load this certificate to m_cmBuff value */
-    //                        LogError("Not implemented!");
+    //                        WrtLogE("Not implemented!");
     //
     //                        EVP_PKEY_free(pKey);
     //                        X509_free(pCertificate);
@@ -636,12 +639,12 @@ CertificateLoader::CertificateLoaderResult CertificateLoader::
     //            X509_free(pCertificate);
     //        }
     //        else
-    //            LogError("Unable to load certificate");
+    //            WrtLogE("Unable to load certificate");
     //
     //        certmgr_release_certificate_data(&descriptor);
     //    }
     //
-    //    LogError("No DSA certificate with given parameters");
+    //    WrtLogE("No DSA certificate with given parameters");
     //
     //    return CERTIFICATE_NOT_FOUND;
 }
@@ -651,11 +654,11 @@ bool CertificateLoader::convertBase64NodeToBigNum(const std::string& strNode,
 {
     (void) strNode;
     (void) ppBigNum;
-    LogError("Not implemented.");
+    WrtLogE("Not implemented.");
     return false;
     //    if (!ppBigNum || *ppBigNum != NULL)
     //    {
-    //        LogError("Ptr variable not initialized properly!");
+    //        WrtLogE("Ptr variable not initialized properly!");
     //        return false;
     //    }
     //
@@ -667,7 +670,7 @@ bool CertificateLoader::convertBase64NodeToBigNum(const std::string& strNode,
     //
     //    if (!binBuff)
     //    {
-    //        LogError("base64 decode failed");
+    //        WrtLogE("base64 decode failed");
     //        return false;
     //    }
     //
@@ -678,7 +681,7 @@ bool CertificateLoader::convertBase64NodeToBigNum(const std::string& strNode,
     //
     //    if (!(*ppBigNum))
     //    {
-    //        LogError("Conversion from node to bignum failed");
+    //        WrtLogE("Conversion from node to bignum failed");
     //        return false;
     //    }
     //
@@ -689,7 +692,7 @@ bool CertificateLoader::convertBase64NodeToBigNum(const std::string& strNode,
 // KW {
 // KW     if (!pBigNum)
 // KW     {
-// KW         LogError("null ptr");
+// KW         WrtLogE("null ptr");
 // KW         return false;
 // KW     }
 // KW
@@ -699,7 +702,7 @@ bool CertificateLoader::convertBase64NodeToBigNum(const std::string& strNode,
 // KW     // convert bignum to binary format
 // KW     if (BN_bn2bin(pBigNum, buffer) < 0)
 // KW     {
-// KW         LogError("Conversion from bignum to binary failed");
+// KW         WrtLogE("Conversion from bignum to binary failed");
 // KW         delete []buffer;
 // KW         return false;
 // KW     }

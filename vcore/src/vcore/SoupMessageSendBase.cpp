@@ -23,7 +23,7 @@
 
 #include <dpl/assert.h>
 #include <dpl/foreach.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
 namespace SoupWrapper {
 
@@ -74,7 +74,7 @@ void SoupMessageSendBase::setRetry(int retry) {
 SoupMessage* SoupMessageSendBase::createRequest(){
     SoupMessage *message;
 
-    LogInfo("Soup message will be send to: " << m_host.c_str());
+    WrtLogI("Soup message will be send to: %s", m_host.c_str());
 
     if (!m_requestBuffer.empty()) {
         message = soup_message_new("POST", m_host.c_str());
@@ -83,7 +83,7 @@ SoupMessage* SoupMessageSendBase::createRequest(){
     }
 
     if (!message) {
-        LogError("Error creating request!");
+        WrtLogE("Error creating request!");
         return 0;
     }
 

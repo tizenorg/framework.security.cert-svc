@@ -1,0 +1,39 @@
+<manifest>
+	<define>
+		<domain name="cert-svc" />
+		<provide>
+			<label name="cert-svc::private-key" />
+			<label name="cert-svc::certs-sharing" />
+			<label name="cert-svc::db" />
+		</provide>
+		<request>
+			<smack request="key-manager::api-storage" type="rw"/>
+			<smack request="device::app_logging" type="w"/>
+			<smack request="device::sys_logging" type="w"/>
+			<smack request="sys-assert::core" type="rwxat"/>
+			<smack request="ca-certificates::ssl-certs" type="rwxat"/>
+		</request>
+	</define>
+	<assign>
+		<filesystem path="/usr/lib/libcert-svc.so.*" label="_" />
+		<filesystem path="/usr/lib/libcert-svc-vcore.*" label="_" />
+		<filesystem path="/usr/share/wrt-engine/schema.xsd" label="_" />
+
+		<filesystem path="/usr/share/cert-svc" label="_" type="transmutable" />
+		<filesystem path="/usr/share/cert-svc/certs" label="_" type="transmutable" />
+		<filesystem path="/usr/share/cert-svc/certs/code-signing" label="_" type="transmutable" />
+		<filesystem path="/usr/share/cert-svc/certs/code-signing/tizen" label="_" type="transmutable" />
+		<filesystem path="/usr/share/cert-svc/certs/code-signing/wac" label="_" type="transmutable" />
+
+		<filesystem path="/opt/share/cert-svc" label="_" />
+		<filesystem path="/opt/share/cert-svc/ca-certificate.crt" label="_" />
+		<filesystem path="/opt/share/cert-svc/certs" label="_" />
+		<filesystem path="/opt/share/cert-svc/certs/ssl" label="ca-certificates::ssl-certs" />
+		<filesystem path="/opt/share/cert-svc/certs/trusteduser" label="_" />
+		<filesystem path="/opt/share/cert-svc/certs/user" label="_" />
+		<filesystem path="/opt/share/cert-svc/pkcs12" label="cert-svc::pkcs12" type="transmutable" />
+	</assign>
+	<request>
+		<domain name="cert-svc" />
+	</request>
+</manifest>

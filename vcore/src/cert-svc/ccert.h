@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011 Samsung Electronics Co., Ltd All Rights Reserved
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd All Rights Reserved
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -27,6 +27,10 @@
 #include <cert-svc/cinstance.h>
 #include <cert-svc/cstring.h>
 
+#ifndef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+#define TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,6 +44,47 @@ typedef struct CertSvcCertificateList_t {
     int privateHandler;
     CertSvcInstance privateInstance;
 } CertSvcCertificateList;
+
+#ifdef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+/* Update the MAX_STORE_ENUMS whenever the list is updated */
+#define MAX_STORE_ENUMS 5
+typedef enum certImportType_t {
+    VPN_STORE    =  1 << 0,
+    WIFI_STORE   =  1 << 1,
+    EMAIL_STORE  =  1 << 2,
+    SYSTEM_STORE =  1 << 3,
+    ALL_STORE    =  VPN_STORE | WIFI_STORE | EMAIL_STORE | SYSTEM_STORE
+} CertStoreType;
+
+typedef struct CertSvcStoreCertList_t{
+    char* gname;             // keyfile group name
+    char* title;             // common Name / Alias provided by the user
+    int status;              // enabled / disabled
+    CertStoreType storeType; // Holds the storetype information
+    struct CertSvcStoreCertList_t *next;
+}CertSvcStoreCertList;
+
+typedef enum certType_t {
+    PEM_CRT          = 1 << 0,
+    P12_END_USER     = 1 << 1,
+    P12_INTERMEDIATE = 1 << 2,
+    P12_TRUSTED      = 1 << 3,
+    P12_PKEY         = 1 << 4,
+    INVALID_DATA     = 1 << 5,
+} CertType;
+
+typedef enum certStatus_t {
+    DISABLED     =  0,
+    ENABLED      =  1,
+} CertStatus;
+#else
+typedef struct CertSvcStoreCertList_t{
+    char* gname;   // keyfile group name
+    char* title;   // common Name
+    char* path;    // absolute path
+    struct CertSvcStoreCertList_t *next;
+}CertSvcStoreCertList;
+#endif
 
 typedef enum CertSvcCertificateForm_t {
 /*    CERTSVC_FORM_PEM, */
@@ -78,6 +123,21 @@ typedef enum CertSvcVisibility_t {
 	CERTSVC_VISIBILITY_PLATFORM = 1 << 10
 } CertSvcVisibility;
 
+#ifdef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+/**
+ * This function will return certificate for the unique name identifier passed (gname).
+ *
+ * @param[in] instance CertSvcInstance object.
+ * @param[in] storeType Refers to the store (WIFI_STORE, VPN_STORE, EMAIL_STORE, SSL_STORE).
+ * @oaran[in] gname Refers to the unique name identifier associated for the certificate.
+ * @param[out] certificate Certificate for the gname passed.
+ * @return CERTSVC_SUCCESS, CERTSVC_BAD_ALLOC, CERTSVC_FAIL, CERTSVC_WRONG_ARGUMENT
+ */
+int certsvc_get_certificate(CertSvcInstance instance,
+                            CertStoreType storeType,
+                            char *gname,
+                            CertSvcCertificate *certificate);
+#endif
 /**
  * Read certificate from file. Certificate must be in PEM/CER/DER format.
  *
@@ -364,6 +424,7 @@ int certsvc_certificate_verify_with_caflag(
  *
  */
 int certsvc_certificate_get_visibility(CertSvcCertificate certificate, int* visibility);
+
 
 #ifdef __cplusplus
 }

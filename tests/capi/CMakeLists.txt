@@ -17,8 +17,6 @@
 # @version     1.0
 # @brief
 #
-INCLUDE(FindPkgConfig)
-SET(TARGET_VCOREC_TEST "cert-svc-tests-capi")
 
 SET(VCOREC_TESTS_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/capi/api_tests.cpp
@@ -31,8 +29,6 @@ INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/vcore/src
     ${PROJECT_SOURCE_DIR}/tests/capi
     ${PROJECT_SOURCE_DIR}/include
-    ${VCOREC_TEST_DEP_INCLUDE_DIRS}
-    ${VCORE_DPL_INCLUDE}
     )
 
 ADD_EXECUTABLE(${TARGET_VCOREC_TEST} ${VCOREC_TESTS_SOURCES})

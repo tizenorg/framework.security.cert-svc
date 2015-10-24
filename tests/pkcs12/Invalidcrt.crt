@@ -1,0 +1,136 @@
+
+package android.app.enterprise;
+
+import android.app.enterprise.BasePolicyParams.PolicyState;
+import android.os.Parcel;
+import android.os.Parcelable;
+
+public class WifiAdminProfile implements Parcelable {
+
+	/** Wifi networks SSID */
+    public String ssid = null;
+
+    /** Pre-shared key for WPA-PSK network type */
+    public String psk = null;
+
+    /** User password for 802.1x EAP network type */
+    public String password = null;
+
+    /** Wifi network security type */
+    public String security = null;
+
+    /** Default WEP key index (0 to 3) */
+    public int wepKeyId = -1;
+
+    /** WEP key 1 (default wepKeyId should be 0)*/
+    public String wepKey1 = null;
+
+    /** WEP key 2 (default wepKeyId should be 1) */
+    public String wepKey2 = null;
+
+    /** WEP key 3 (default wepKeyId should be 2) */
+    public String wepKey3 = null;
+
+    /** WEP key 4 (default wepKeyId should be 3) */
+    public String wepKey4 = null;
+
+    /** User identity for 802.1x EAP network type */
+    public String userIdentity = null;
+
+    /** User anonymous identity for 802.1x EAP network type */
+    public String anonymousIdentity = null;
+
+    /** Phase 2 authentication type for 802.1x EAP network type */
+    public String phase2 = null;
+
+    /** Client (User) certicate for 802.1x EAP/TLS network type */
+    public String clientCertification = null;
+
+    /** CA certicate for 802.1x EAP/TLS network type */
+    public String caCertificate = null;
+
+    /** Private key for 802.1x EAP/TLS network type */
+    public String privateKey = null;
+
+    /** Common names used to match server certificate for 802.1x EAP/TLS network type
+     * Use ";" as separator for name list
+     */
+    public String cnMatchList = null;
+
+    /** SHA-1 fingerprints used to match server certificate for 802.1x EAP/TLS network type
+     * Use ";" as separator for name list
+     */
+    public String fingerprintMatchList = null;
+
+    /** Allow dynamic certificate authentication*/
+    public PolicyState allowDynamicTrust = PolicyState.DEFAULT;
+
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeString(ssid);
+        dest.writeString(psk);
+        dest.writeString(password);
+        dest.writeString(security);
+        dest.writeInt(wepKeyId);
+        dest.writeString(wepKey1);
+        dest.writeString(wepKey2);
+        dest.writeString(wepKey3);
+        dest.writeString(wepKey4);
+        dest.writeString(userIdentity);
+        dest.writeString(anonymousIdentity);
+        dest.writeString(phase2);
+        dest.writeString(clientCertification);
+        dest.writeString(caCertificate);
+        dest.writeString(privateKey);
+        dest.writeString(cnMatchList);
+        dest.writeString(fingerprintMatchList);
+        dest.writeInt(allowDynamicTrust.ordinal());
+    }
+
+    public WifiAdminProfile() {
+        // do nothing
+    }
+
+    private WifiAdminProfile(Parcel in) {
+        ssid = in.readString();
+        psk = in.readString();
+        password = in.readString();
+        security = in.readString();
+        wepKeyId = in.readInt();
+        wepKey1 = in.readString();
+        wepKey2 = in.readString();
+        wepKey3 = in.readString();
+        wepKey4 = in.readString();
+        userIdentity = in.readString();
+        anonymousIdentity = in.readString();
+        phase2 = in.readString();
+        clientCertification = in.readString();
+        caCertificate = in.readString();
+        privateKey = in.readString();
+        cnMatchList = in.readString();
+        fingerprintMatchList = in.readString();
+        allowDynamicTrust = PolicyState.valueOf(in.readInt());
+    }
+
+    public static final Parcelable.Creator<WifiAdminProfile> CREATOR = new Parcelable.Creator<WifiAdminProfile>() {
+        public WifiAdminProfile createFromParcel(Parcel in) {
+            return new WifiAdminProfile(in);
+        }
+
+        public WifiAdminProfile[] newArray(int size) {
+            return new WifiAdminProfile[size];
+        }
+    };
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    public PolicyState booleanToEnum(String text) {
+        if (Boolean.parseBoolean(text)) {
+            return PolicyState.TRUE;
+        }
+        // else:
+        return PolicyState.FALSE;
+    }
+}

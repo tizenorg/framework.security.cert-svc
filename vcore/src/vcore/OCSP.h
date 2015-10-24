@@ -35,6 +35,7 @@ class OCSPImpl;
 
 class OCSP {
 public:
+
     OCSP(const OCSP &) = delete;
     const OCSP &operator=(const OCSP &) = delete;
 

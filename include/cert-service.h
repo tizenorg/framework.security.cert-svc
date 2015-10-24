@@ -27,6 +27,8 @@
 extern "C" {
 #endif	// __cplusplus
 
+#include <glib.h>
+
 /*********************************************************************************/
 /* Constants                                                                     */
 /*********************************************************************************/
@@ -62,11 +64,19 @@ extern "C" {
 #define CERT_SVC_ERR_OCSP_INTERNAL	-23
 #define CERT_SVC_ERR_OCSP_REMOTE	-24
 #endif
+
+#define CERT_SVC_ERR_INVALID_NO_DEVICE_PROFILE      -25
+#define CERT_SVC_ERR_INVALID_DEVICE_UNIQUE_ID       -26
+#define CERT_SVC_ERR_INVALID_SDK_DEFAULT_AUTHOR_CERT -27
+#define CERT_SVC_ERR_IN_DISTRIBUTOR_CASE_AUTHOR_CERT -28
+#define CERT_SVC_ERR_IN_AUTHOR_CASE_DISTRIBUTOR_CERT -29
+
 /* default certificate file path */
 #define CERT_SVC_STORE_PATH         "/opt/share/cert-svc/certs/"
 #define CERT_SVC_STORE_PATH_DEFAULT "/opt/share/cert-svc/certs/ssl/"
 #define CERT_SVC_SEARCH_PATH_RO     "/usr/share/cert-svc/certs/"
 #define CERT_SVC_SEARCH_PATH_RW     "/opt/share/cert-svc/certs/"
+#define CERT_SVC_TIZEN_ROOT_PATH_RO "/usr/share/cert-svc/certs/code-signing/tizen/"
 
 /*********************************************************************************/
 /* Type definitions                                                              */
@@ -94,14 +104,19 @@ typedef enum {
 
 typedef enum cert_svc_visibility_t {
 	CERT_SVC_VISIBILITY_DEVELOPER = 1,
-	CERT_SVC_VISIBILITY_TEST = 1 << 1,
-	CERT_SVC_VISIBILITY_VERIFY = 1 << 2,
 	CERT_SVC_VISIBILITY_PUBLIC = 1 << 6,
 	CERT_SVC_VISIBILITY_PARTNER = 1 << 7,
 	CERT_SVC_VISIBILITY_PARTNER_OPERATOR = 1 << 8,
 	CERT_SVC_VISIBILITY_PARTNER_MANUFACTURER = 1 << 9,
 	CERT_SVC_VISIBILITY_PLATFORM = 1 << 10
 } cert_svc_visibility;
+
+typedef enum cert_svc_type_t {
+	CERT_SVC_TYPE_NO_TYPE = 0,
+	CERT_SVC_TYPE_TEST = 	1 << 1,
+	CERT_SVC_TYPE_VERIFY =	1 << 2,
+	CERT_SVC_TYPE_STORE =	1 << 3
+} cert_svc_type;
 
 typedef struct {
 	unsigned int firstSecond;
@@ -202,6 +217,7 @@ int cert_svc_push_file_into_context(CERT_CONTEXT* ctx, const char* filePath);
 int cert_svc_add_certificate_to_store(const char* filePath, const char* location);
 int cert_svc_delete_certificate_from_store(const char* fileName, const char* location);
 int cert_svc_verify_certificate(CERT_CONTEXT* ctx, int* validity);
+int cert_svc_verify_package_certificate(CERT_CONTEXT* ctx, int* validity, const char* signatureFile);
 int cert_svc_verify_certificate_with_caflag(CERT_CONTEXT* ctx, int* validity);
 int cert_svc_verify_signature(CERT_CONTEXT* ctx, unsigned char* message, int msgLen, unsigned char* signature, char* algo, int* validity);
 int cert_svc_extract_certificate_data(CERT_CONTEXT* ctx);
@@ -209,10 +225,16 @@ int cert_svc_search_certificate(CERT_CONTEXT* ctx, search_field fldName, char* f
 int cert_svc_get_visibility(CERT_CONTEXT* ctx, int* visibility);
 int cert_svc_get_visibility_by_root_certificate(const char* cert_data, int data_len, int* visibility);
 
+
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 int cert_svc_check_ocsp_status(CERT_CONTEXT* ctx, const char* uri);
 #endif
 char* cert_svc_get_certificate_crt_file_path(void);
+
+int cert_svc_util_parse_name_fld_data(unsigned char* str, cert_svc_name_fld_data* fld);
+
+int cert_svc_verify_package_signature_file(const char* sigfileFullPath, const char* rootCertPath);
+int cert_svc_verify_package_signature_with_references(const char* sigfileFullPath, const char* rootCertPath, const GList* refList);
 #ifdef __cplusplus
 }
 #endif	// __cplusplus

@@ -33,8 +33,6 @@ int main (int argc, char *argv[])
 {
 	int status = -1;
 
-	g_type_init();
-//	g_thread_init(NULL);
 	ValidationCore::VCoreInit(
 		"/usr/share/wrt-engine/fingerprint_list.xml",
 		"/usr/share/wrt-engine/fingerprint_list.xsd",

@@ -28,7 +28,7 @@
 #include <vcore/ValidatorFactories.h>
 #include <vcore/XmlsecAdapter.h>
 
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
 namespace {
 const time_t TIMET_DAY = 60 * 60 * 24;
@@ -39,7 +39,13 @@ const std::string TOKEN_ROLE_DISTRIBUTOR_URI =
     "http://www.w3.org/ns/widgets-digsig#role-distributor";
 const std::string TOKEN_PROFILE_URI =
     "http://www.w3.org/ns/widgets-digsig#profile";
+
 } // namespace anonymouse
+
+static void _get_localtime_safe(const time_t *timep, tm *result)
+{
+    localtime_r(timep, result);
+}
 
 static tm _ASN1_GetTimeT(ASN1_TIME* time)
 {
@@ -51,7 +57,7 @@ static tm _ASN1_GetTimeT(ASN1_TIME* time)
 
     if (time->type == V_ASN1_UTCTIME) /* two digit year */
     {
-        t.tm_year = (str[i] - '0') * 10 + (str[i + 1] - '0');
+        t.tm_year = (str[i] - '0') * 10 + (str[i+1] - '0');
         i += 2;
         if (t.tm_year < 70)
             t.tm_year += 100;
@@ -59,18 +65,18 @@ static tm _ASN1_GetTimeT(ASN1_TIME* time)
     else if (time->type == V_ASN1_GENERALIZEDTIME) /* four digit year */
     {
         t.tm_year =
-			(str[i] - '0') * 1000
-			+ (str[i + 1] - '0') * 100
-			+ (str[i + 2] - '0') * 10
-			+ (str[i + 3] - '0');
+            (str[i] - '0') * 1000
+            + (str[i+1] - '0') * 100
+            + (str[i+2] - '0') * 10
+            + (str[i+3] - '0');
         i += 4;
         t.tm_year -= 1900;
     }
-    t.tm_mon = ((str[i] - '0') * 10 + (str[i + 1] - '0')) - 1; // -1 since January is 0 not 1.
-    t.tm_mday = (str[i + 2] - '0') * 10 + (str[i + 3] - '0');
-    t.tm_hour = (str[i + 4] - '0') * 10 + (str[i + 5] - '0');
-    t.tm_min  = (str[i + 6] - '0') * 10 + (str[i + 7] - '0');
-    t.tm_sec  = (str[i + 8] - '0') * 10 + (str[i + 9] - '0');
+    t.tm_mon = ((str[i] - '0') * 10 + (str[i+1] - '0')) - 1; // -1 since January is 0 not 1.
+    t.tm_mday = (str[i+2] - '0') * 10 + (str[i+3] - '0');
+    t.tm_hour = (str[i+4] - '0') * 10 + (str[i+5] - '0');
+    t.tm_min  = (str[i+6] - '0') * 10 + (str[i+7] - '0');
+    t.tm_sec  = (str[i+8] - '0') * 10 + (str[i+9] - '0');
 
     /* Note: we did not adjust the time based on time zone information */
     return t;
@@ -89,11 +95,15 @@ public:
                   bool crlEnable,
                   bool complianceMode)
       : m_complianceModeEnabled(complianceMode)
-	#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
-	  ,	m_ocspEnable(ocspEnable)
-      , m_crlEnable(crlEnable)
-    #endif 
-    {}
+    {
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+        m_ocspEnable = ocspEnable;
+        m_crlEnable = crlEnable;
+#else
+        (void) ocspEnable;
+        (void) crlEnable;
+#endif
+    }
 
     virtual ~Impl() {}
 
@@ -101,18 +111,18 @@ public:
         std::string roleURI = data.getRoleURI();
 
         if (roleURI.empty()) {
-            LogWarning("URI attribute in Role tag couldn't be empty.");
+            WrtLogW("URI attribute in Role tag couldn't be empty.");
             return false;
         }
 
         if (roleURI != TOKEN_ROLE_AUTHOR_URI && data.isAuthorSignature()) {
-            LogWarning("URI attribute in Role tag does not "
+            WrtLogW("URI attribute in Role tag does not "
               "match with signature filename.");
             return false;
         }
 
         if (roleURI != TOKEN_ROLE_DISTRIBUTOR_URI && !data.isAuthorSignature()) {
-            LogWarning("URI attribute in Role tag does not "
+            WrtLogW("URI attribute in Role tag does not "
               "match with signature filename.");
             return false;
         }
@@ -121,9 +131,7 @@ public:
 
     bool checkProfileURI(const SignatureData &data) {
         if (TOKEN_PROFILE_URI != data.getProfileURI()) {
-            LogWarning(
-              "Profile tag contains unsupported value in URI attribute(" <<
-              data.getProfileURI() << ").");
+            WrtLogW("Profile tag contains unsupported value in URI attribute (%s).", (data.getProfileURI()).c_str());
             return false;
         }
         return true;
@@ -134,8 +142,7 @@ public:
         ObjectList::const_iterator iter;
         for (iter = objectList.begin(); iter != objectList.end(); ++iter) {
             if (!data.containObjectReference(*iter)) {
-                LogWarning("Signature does not contain reference for object " <<
-                  *iter);
+                WrtLogW("Signature does not contain reference for object %s", (*iter).c_str());
                 return false;
             }
         }
@@ -185,14 +192,14 @@ WrtSignatureValidator::Result ImplTizen::check(
 
     // First step - sort certificate
     if (!collection.sort()) {
-        LogWarning("Certificates do not form valid chain.");
-        return WrtSignatureValidator::SIGNATURE_INVALID;
+        WrtLogW("Certificates do not form valid chain.");
+        return WrtSignatureValidator::SIGNATURE_INVALID_CERT_CHAIN;//SIGNATURE_INVALID;
     }
 
     // Check for error
     if (collection.empty()) {
-        LogWarning("Certificate list in signature is empty.");
-        return WrtSignatureValidator::SIGNATURE_INVALID;
+        WrtLogW("Certificate list in signature is empty.");
+        return WrtSignatureValidator::SIGNATURE_INVALID_CERT_CHAIN;//SIGNATURE_INVALID;
     }
 
     CertificateList sortedCertificateList = collection.getChain();
@@ -207,48 +214,44 @@ WrtSignatureValidator::Result ImplTizen::check(
     // Is Root CA certificate trusted?
     CertStoreId::Set storeIdSet = createCertificateIdentifier().find(root);
 
-    LogDebug("Is root certificate from TIZEN_DEVELOPER domain:  "
-        << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
-    LogDebug("Is root certificate from TIZEN_TEST domain:  "
-        << storeIdSet.contains(CertStoreId::TIZEN_TEST));
-    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
-        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
-    LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
-        << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
-    LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
-        << storeIdSet.contains(CertStoreId::VIS_PARTNER));
-    LogDebug("Is root certificate from TIZEN_PLATFORM domain:  "
-        << storeIdSet.contains(CertStoreId::VIS_PLATFORM));
-    LogDebug("Visibility level is public :  "
-        << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
-    LogDebug("Visibility level is partner :  "
-        << storeIdSet.contains(CertStoreId::VIS_PARTNER));
-	LogDebug("Visibility level is platform :  "
-		<< storeIdSet.contains(CertStoreId::VIS_PLATFORM));
+    WrtLogD("Is root certificate from TIZEN_DEVELOPER domain:  %d", storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
+    WrtLogD("Is root certificate from TIZEN_TEST domain:  %d", storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    WrtLogD("Is root certificate from TIZEN_VERIFY domain:  %d", storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
+    WrtLogD("Is root certificate from TIZEN_PUBLIC domain:  %d", storeIdSet.contains(CertStoreId::VIS_PUBLIC));
+    WrtLogD("Is root certificate from TIZEN_PARTNER domain:  %d", storeIdSet.contains(CertStoreId::VIS_PARTNER));
+    WrtLogD("Is root certificate from TIZEN_PLATFORM domain:  %d", storeIdSet.contains(CertStoreId::VIS_PLATFORM));
+    WrtLogD("Visibility level is public :  %d", storeIdSet.contains(CertStoreId::VIS_PUBLIC));
+    WrtLogD("Visibility level is partner :  %d", storeIdSet.contains(CertStoreId::VIS_PARTNER));
+	WrtLogD("Visibility level is platform :  %d", storeIdSet.contains(CertStoreId::VIS_PLATFORM));
 
 	if (data.isAuthorSignature())
 	{
 		if (!storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER))
 		{
-            LogWarning("author-signature.xml has got unrecognized Root CA "
-                       "certificate. Signature will be disregarded.");
-            disregard = true;
+			WrtLogW("author-signature.xml has got unrecognized Root CA "
+					"certificate. Signature will be disregarded.");
+			disregard = true;
 		}
-        LogDebug("Root CA for author signature is correct.");
 	}
-	else
+	else // distributor
 	{
-		LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
+		if (storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER))
+		{
+			WrtLogW("distributor has author level siganture! Signature will be disregarded.");
+			return WrtSignatureValidator::SIGNATURE_IN_DISTRIBUTOR_CASE_AUTHOR_CERT;//SIGNATURE_INVALID;
+		}
+		WrtLogD("signaturefile name = %s", data.getSignatureFileName().c_str());
+
 
 		if (data.getSignatureNumber() == 1)
 		{
 			if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
 			{
-				LogDebug("Root CA for signature1.xml is correct.");
+				WrtLogD("Root CA for signature1.xml is correct.");
 			}
 			else
 			{
-				LogWarning("signature1.xml has got unrecognized Root CA "
+				WrtLogW("signature1.xml has got unrecognized Root CA "
 				        "certificate. Signature will be disregarded.");
 				disregard = true;
 			}
@@ -268,7 +271,7 @@ WrtSignatureValidator::Result ImplTizen::check(
     // If the end certificate is not ROOT CA we should disregard signature
     // but still signature must be valid... Aaaaaa it's so stupid...
     if (!(root->isSignedBy(root))) {
-        LogWarning("Root CA certificate not found. Chain is incomplete.");
+        WrtLogW("Root CA certificate not found. Chain is incomplete.");
         //context.allowBrokenChain = true;
     }
 
@@ -283,35 +286,33 @@ WrtSignatureValidator::Result ImplTizen::check(
 
 	if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
     {
-      struct tm *t;
+      struct tm t;
       struct tm ta, tb, tc;
       char msg[1024];
 
-      t = localtime(&nowTime);
-      if (!t)
-          return WrtSignatureValidator::SIGNATURE_INVALID; // internal error.
+      _get_localtime_safe(&nowTime, &t);
 
       memset(&tc, 0, sizeof(tc));
 
-      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
-      LogDebug("## System's currentTime : " << msg);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t.tm_year + 1900, t.tm_mon + 1,t.tm_mday );
+      WrtLogD("## System's currentTime : %s", msg);
       fprintf(stderr, "## System's currentTime : %s\n", msg);
 
       tb = _ASN1_GetTimeT(notBeforeTime);
       snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
-      LogDebug("## certificate's notBeforeTime : " << msg);
+      WrtLogD("## certificate's notBeforeTime : %s", msg);
       fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
 
       ta = _ASN1_GetTimeT(notAfterTime);
       snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-      LogDebug("## certificate's notAfterTime : " << msg);
+      WrtLogD("## certificate's notAfterTime : %s", msg);
       fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
 
-      if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
-      {
-         LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+	  if (storeIdSet.contains(CertStoreId::TIZEN_TEST) || storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
+	  {
+         WrtLogD("## TIZEN_VERIFY : check certificate Time : FALSE");
          fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
-         return WrtSignatureValidator::SIGNATURE_INVALID;
+         return WrtSignatureValidator::SIGNATURE_INVALID_CERT_TIME;//SIGNATURE_INVALID;
       }
 
       int year = (ta.tm_year - tb.tm_year) / 4;
@@ -350,7 +351,7 @@ WrtSignatureValidator::Result ImplTizen::check(
       }
 
       snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
-      LogDebug("## cmp cert with validation time : " << msg);
+      WrtLogD("## cmp cert with validation time : %s", msg);
       fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
 
       time_t outCurrent = mktime(&tc);
@@ -376,30 +377,30 @@ WrtSignatureValidator::Result ImplTizen::check(
 		if (notAfter < nowTime)
 		{
 			context.validationTime = notAfter - TIMET_DAY;
-			LogWarning("Author certificate is expired. notAfter...");
+			WrtLogW("Author certificate is expired. notAfter...");
 		}
 		*/
 
 		if (notBefore > nowTime)
 		{
-			LogWarning("Author certificate is expired. notBefore time is greater than system-time.");
+			WrtLogW("Author certificate is expired. notBefore time is greater than system-time.");
 
 			t = localtime(&nowTime);
-			LogDebug("System's current Year : " << t->tm_year + 1900);
-			LogDebug("System's current month : " << t->tm_mon + 1);
-			LogDebug("System's current day : " << t->tm_mday);
+			WrtLogD("System's current Year : %d", (t->tm_year + 1900));
+			WrtLogD("System's current month : %d", (t->tm_mon + 1));
+			WrtLogD("System's current day : %d", (t->tm_mday));
 
 			t = localtime(&notBefore);
-			LogDebug("Author certificate's notBefore Year : " << t->tm_year + 1900);
-			LogDebug("Author certificate's notBefore month : " << t->tm_mon + 1);
-			LogDebug("Author certificate's notBefore day : " << t->tm_mday);
+			WrtLogD("Author certificate's notBefore Year : %d", (t->tm_year + 1900));
+			WrtLogD("Author certificate's notBefore month : %d", (t->tm_mon + 1));
+			WrtLogD("Author certificate's notBefore day : %d", (t->tm_mday));
 
 			context.validationTime = notBefore + TIMET_DAY;
 
 			t = localtime(&context.validationTime);
-			LogDebug("Modified current Year : " << t->tm_year + 1900);
-			LogDebug("Modified current notBefore month : " << t->tm_mon + 1);
-			LogDebug("Modified current notBefore day : " << t->tm_mday);
+			WrtLogD("Modified current Year : %d", (t->tm_year + 1900));
+			WrtLogD("Modified current notBefore month : %d", (t->tm_mon + 1));
+			WrtLogD("Modified current notBefore day : %d",  (t->tm_mday));
 		}
 	}
 #endif
@@ -407,22 +408,26 @@ WrtSignatureValidator::Result ImplTizen::check(
 	//context.allowBrokenChain = true;
 
 	// end
-    if (XmlSec::NO_ERROR != XmlSecSingleton::Instance().validate(&context)) {
-        LogWarning("Installation break - invalid package!");
-        return WrtSignatureValidator::SIGNATURE_INVALID;
-    }
+	if (!data.isAuthorSignature())
+	{
+		if (XmlSec::NO_ERROR != XmlSecSingleton::Instance().validate(&context)) {
+			WrtLogW("Installation break - invalid package!");
+			return WrtSignatureValidator::SIGNATURE_INVALID_HASH_SIGNATURE;//SIGNATURE_INVALID;
+		}
 
-    data.setReference(context.referenceSet);
+		data.setReference(context.referenceSet);
 
-    if (!checkObjectReferences(data)) {
-        return WrtSignatureValidator::SIGNATURE_INVALID;
-    }
+		if (!checkObjectReferences(data)) {
+			WrtLogW("Failed to check Object References");
+			return WrtSignatureValidator::SIGNATURE_INVALID_HASH_SIGNATURE;//SIGNATURE_INVALID;
+		}
 
-    ReferenceValidator fileValidator(widgetContentPath);
-    if (ReferenceValidator::NO_ERROR != fileValidator.checkReferences(data)) {
-        LogWarning("Invalid package - file references broken");
-        return WrtSignatureValidator::SIGNATURE_INVALID;
-    }
+		ReferenceValidator fileValidator(widgetContentPath);
+		if (ReferenceValidator::NO_ERROR != fileValidator.checkReferences(data)) {
+			WrtLogW("Invalid package - file references broken");
+			return WrtSignatureValidator::SIGNATURE_INVALID_NO_HASH_FILE;//SIGNATURE_INVALID;
+		}
+	}
 
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
@@ -434,8 +439,8 @@ WrtSignatureValidator::Result ImplTizen::check(
         coll.load(sortedCertificateList);
 
         if (!coll.sort()) {
-            LogDebug("Collection does not contain chain!");
-            return WrtSignatureValidator::SIGNATURE_INVALID;
+            WrtLogD("Collection does not contain chain!");
+            return WrtSignatureValidator::SIGNATURE_INVALID_CERT_CHAIN;//SIGNATURE_INVALID;
         }
 
         CertificateVerifier verificator(m_ocspEnable, m_crlEnable);
@@ -456,8 +461,8 @@ WrtSignatureValidator::Result ImplTizen::check(
 #endif
 
     if (disregard) {
-        LogWarning("Signature is disregard. RootCA is not a member of Tizen");
-        return WrtSignatureValidator::SIGNATURE_DISREGARD;
+        WrtLogW("Signature is disregard. RootCA is not a member of Tizen");
+        return WrtSignatureValidator::SIGNATURE_INVALID_DISTRIBUTOR_CERT;//SIGNATURE_DISREGARD;
     }
     return WrtSignatureValidator::SIGNATURE_VERIFIED;
 }
@@ -498,13 +503,13 @@ WrtSignatureValidator::Result ImplWac::check(
 
     // First step - sort certificate
     if (!collection.sort()) {
-        LogWarning("Certificates do not form valid chain.");
+        WrtLogW("Certificates do not form valid chain.");
         return WrtSignatureValidator::SIGNATURE_INVALID;
     }
 
     // Check for error
     if (collection.empty()) {
-        LogWarning("Certificate list in signature is empty.");
+        WrtLogW("Certificate list in signature is empty.");
         return WrtSignatureValidator::SIGNATURE_INVALID;
     }
 
@@ -520,50 +525,44 @@ WrtSignatureValidator::Result ImplWac::check(
     // Is Root CA certificate trusted?
     CertStoreId::Set storeIdSet = createCertificateIdentifier().find(root);
 
-    LogDebug("Is root certificate from TIZEN_DEVELOPER domain:  "
-        << storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
-    LogDebug("Is root certificate from TIZEN_TEST domain:  "
-        << storeIdSet.contains(CertStoreId::TIZEN_TEST));
-    LogDebug("Is root certificate from TIZEN_VERIFY domain:  "
-        << storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
-    LogDebug("Is root certificate from TIZEN_PUBLIC domain:  "
-        << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
-    LogDebug("Is root certificate from TIZEN_PARTNER domain:  "
-        << storeIdSet.contains(CertStoreId::VIS_PARTNER));
-    LogDebug("Is root certificate from TIZEN_PLATFORM domain:  "
-        << storeIdSet.contains(CertStoreId::VIS_PLATFORM));
+    WrtLogD("Is root certificate from TIZEN_DEVELOPER domain:  %d", storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER));
+    WrtLogD("Is root certificate from TIZEN_TEST domain:  %d", storeIdSet.contains(CertStoreId::TIZEN_TEST));
+    WrtLogD("Is root certificate from TIZEN_VERIFY domain:  %d", storeIdSet.contains(CertStoreId::TIZEN_VERIFY));
+    WrtLogD("Is root certificate from TIZEN_PUBLIC domain:  %d", storeIdSet.contains(CertStoreId::VIS_PUBLIC));
+    WrtLogD("Is root certificate from TIZEN_PARTNER domain:  %d", storeIdSet.contains(CertStoreId::VIS_PARTNER));
+    WrtLogD("Is root certificate from TIZEN_PLATFORM domain:  %d", storeIdSet.contains(CertStoreId::VIS_PLATFORM));
 
-    LogDebug("Visibility level is public :  "
-        << storeIdSet.contains(CertStoreId::VIS_PUBLIC));
-    LogDebug("Visibility level is partner :  "
-        << storeIdSet.contains(CertStoreId::VIS_PARTNER));
-	LogDebug("Visibility level is platform :  "
-		<< storeIdSet.contains(CertStoreId::VIS_PLATFORM));
+    WrtLogD("Visibility level is public :  %d", storeIdSet.contains(CertStoreId::VIS_PUBLIC));
+    WrtLogD("Visibility level is partner :  %d", storeIdSet.contains(CertStoreId::VIS_PARTNER));
+	WrtLogD("Visibility level is platform :  %d", storeIdSet.contains(CertStoreId::VIS_PLATFORM));
 
 	if (data.isAuthorSignature())
 	{
 		if (!storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER))
 		{
-            LogWarning("author-signature.xml has got unrecognized Root CA "
-                       "certificate. Signature will be disregarded.");
-            disregard = true;
+			WrtLogW("author-signature.xml has got unrecognized Root CA "
+					"certificate. Signature will be disregarded.");
+			disregard = true;
 		}
-        LogDebug("Root CA for author signature is correct.");
 	}
 	else
 	{
-		LogDebug("signaturefile name = " <<  data.getSignatureFileName().c_str());
-		//Additional Check for certificate registration
+		if (storeIdSet.contains(CertStoreId::TIZEN_DEVELOPER))
+		{
+			WrtLogW("distributor has author level siganture! Signature will be disregarded.");
+			return WrtSignatureValidator::SIGNATURE_INVALID;
+		}
+		WrtLogD("signaturefile name = %s", data.getSignatureFileName().c_str());
 
 		if (data.getSignatureNumber() == 1)
 		{
 			if (storeIdSet.contains(CertStoreId::VIS_PUBLIC) || storeIdSet.contains(CertStoreId::VIS_PARTNER) || storeIdSet.contains(CertStoreId::VIS_PLATFORM))
 			{
-				LogDebug("Root CA for signature1.xml is correct.");
+				WrtLogD("Root CA for signature1.xml is correct.");
 			}
 			else
 			{
-				LogWarning("signature1.xml has got unrecognized Root CA "
+				WrtLogW("signature1.xml has got unrecognized Root CA "
 				        "certificate. Signature will be disregarded.");
 				disregard = true;
 			}
@@ -583,7 +582,7 @@ WrtSignatureValidator::Result ImplWac::check(
     // If the end certificate is not ROOT CA we should disregard signature
     // but still signature must be valid... Aaaaaa it's so stupid...
     if (!(root->isSignedBy(root))) {
-        LogWarning("Root CA certificate not found. Chain is incomplete.");
+        WrtLogW("Root CA certificate not found. Chain is incomplete.");
 //        context.allowBrokenChain = true;
     }
 
@@ -598,33 +597,31 @@ WrtSignatureValidator::Result ImplWac::check(
 
 		if (X509_cmp_time(notBeforeTime, &nowTime) > 0  || X509_cmp_time(notAfterTime, &nowTime) < 0)
     {
-      struct tm *t;
+      struct tm t;
       struct tm ta, tb, tc;
       char msg[1024];
 
-      t = localtime(&nowTime);
-      if (!t)
-          return WrtSignatureValidator::SIGNATURE_INVALID; // internal error.
+      _get_localtime_safe(&nowTime, &t);
 
       memset(&tc, 0, sizeof(tc));
 
-      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t->tm_year + 1900, t->tm_mon + 1,t->tm_mday );
-      LogDebug("## System's currentTime : " << msg);
+      snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", t.tm_year + 1900, t.tm_mon + 1,t.tm_mday );
+      WrtLogD("## System's currentTime : %s", msg);
       fprintf(stderr, "## System's currentTime : %s\n", msg);
 
       tb = _ASN1_GetTimeT(notBeforeTime);
       snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tb.tm_year + 1900, tb.tm_mon + 1,tb.tm_mday );
-      LogDebug("## certificate's notBeforeTime : " << msg);
+      WrtLogD("## certificate's notBeforeTime : %s", msg);
       fprintf(stderr, "## certificate's notBeforeTime : %s\n", msg);
 
       ta = _ASN1_GetTimeT(notAfterTime);
       snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", ta.tm_year + 1900, ta.tm_mon + 1,ta.tm_mday );
-      LogDebug("## certificate's notAfterTime : " << msg);
+      WrtLogD("## certificate's notAfterTime : %s", msg);
       fprintf(stderr, "## certificate's notAfterTime : %s\n", msg);
 
       if (storeIdSet.contains(CertStoreId::TIZEN_VERIFY))
       {
-         LogDebug("## TIZEN_VERIFY : check certificate Time : FALSE");
+         WrtLogD("## TIZEN_VERIFY : check certificate Time : FALSE");
          fprintf(stderr, "## TIZEN_VERIFY : check certificate Time : FALSE\n");
          return WrtSignatureValidator::SIGNATURE_INVALID;
       }
@@ -665,7 +662,7 @@ WrtSignatureValidator::Result ImplWac::check(
       }
 
       snprintf(msg, sizeof(msg), "Year: %d, month: %d, day : %d", tc.tm_year + 1900, tc.tm_mon + 1,tc.tm_mday );
-      LogDebug("## cmp cert with validation time : " << msg);
+      WrtLogD("## cmp cert with validation time : %s", msg);
       fprintf(stderr, "## cmp cert with validation time : %s\n", msg);
 
       time_t outCurrent = mktime(&tc);
@@ -691,49 +688,53 @@ WrtSignatureValidator::Result ImplWac::check(
 		if (notAfter < nowTime)
 		{
 			context.validationTime = notAfter - TIMET_DAY;
-			LogWarning("Author certificate is expired. notAfter...");
+			WrtLogW("Author certificate is expired. notAfter...");
 		 }
 		 */
 
 		if (notBefore > nowTime)
 		{
-			LogWarning("Author certificate is expired. notBefore time is greater than system-time.");
+			WrtLogW("Author certificate is expired. notBefore time is greater than system-time.");
 
 			t = localtime(&nowTime);
-			LogDebug("System's current Year : " << t->tm_year + 1900);
-			LogDebug("System's current month : " << t->tm_mon + 1);
-			LogDebug("System's current day : " << t->tm_mday);
+			WrtLogD("System's current Year : %d", (t->tm_year + 1900));
+			WrtLogD("System's current month : %d", (t->tm_mon + 1));
+			WrtLogD("System's current day : %d", (t->tm_mday));
 
 			t = localtime(&notBefore);
-			LogDebug("Author certificate's notBefore Year : " << t->tm_year + 1900);
-			LogDebug("Author certificate's notBefore month : " << t->tm_mon + 1);
-			LogDebug("Author certificate's notBefore day : " << t->tm_mday);
+			WrtLogD("Author certificate's notBefore Year : %d", (t->tm_year + 1900));
+			WrtLogD("Author certificate's notBefore month : %d", (t->tm_mon + 1));
+			WrtLogD("Author certificate's notBefore day : %d", (t->tm_mday));
 
 			context.validationTime = notBefore + TIMET_DAY;
 
 			t = localtime(&context.validationTime);
-			LogDebug("Modified current Year : " << t->tm_year + 1900);
-			LogDebug("Modified current notBefore month : " << t->tm_mon + 1);
-			LogDebug("Modified current notBefore day : " << t->tm_mday);
+			WrtLogD("Modified current Year : %d", (t->tm_year + 1900));
+			WrtLogD("Modified current notBefore month : %d", (t->tm_mon + 1));
+			WrtLogD("Modified current notBefore day : %d", (t->tm_mday));
 		}
 	}
 #endif
-    if (XmlSec::NO_ERROR != XmlSecSingleton::Instance().validate(&context)) {
-        LogWarning("Installation break - invalid package!");
-        return WrtSignatureValidator::SIGNATURE_INVALID;
-    }
 
-    data.setReference(context.referenceSet);
+	if (!data.isAuthorSignature())
+	{
+		if (XmlSec::NO_ERROR != XmlSecSingleton::Instance().validate(&context)) {
+			WrtLogW("Installation break - invalid package!");
+			return WrtSignatureValidator::SIGNATURE_INVALID;
+		}
 
-    if (!checkObjectReferences(data)) {
-        return WrtSignatureValidator::SIGNATURE_INVALID;
-    }
+		data.setReference(context.referenceSet);
 
-    ReferenceValidator fileValidator(widgetContentPath);
-    if (ReferenceValidator::NO_ERROR != fileValidator.checkReferences(data)) {
-        LogWarning("Invalid package - file references broken");
-        return WrtSignatureValidator::SIGNATURE_INVALID;
-    }
+		if (!checkObjectReferences(data)) {
+			return WrtSignatureValidator::SIGNATURE_INVALID;
+		}
+
+		ReferenceValidator fileValidator(widgetContentPath);
+		if (ReferenceValidator::NO_ERROR != fileValidator.checkReferences(data)) {
+			WrtLogW("Invalid package - file references broken");
+			return WrtSignatureValidator::SIGNATURE_INVALID;
+		}
+	}
 
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
     // It is good time to do OCSP check
@@ -745,7 +746,7 @@ WrtSignatureValidator::Result ImplWac::check(
         coll.load(sortedCertificateList);
 
         if (!coll.sort()) {
-            LogDebug("Collection does not contain chain!");
+            WrtLogD("Collection does not contain chain!");
             return WrtSignatureValidator::SIGNATURE_INVALID;
         }
 
@@ -767,7 +768,7 @@ WrtSignatureValidator::Result ImplWac::check(
 #endif
 
     if (disregard) {
-        LogWarning("Signature is disregard. RootCA is not a member of Tizen.");
+        WrtLogW("Signature is disregard. RootCA is not a member of Tizen.");
         return WrtSignatureValidator::SIGNATURE_DISREGARD;
     }
     return WrtSignatureValidator::SIGNATURE_VERIFIED;

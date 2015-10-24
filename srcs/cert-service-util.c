@@ -44,7 +44,7 @@
 #define ICERT_BODY_SUFIX  "-----END TRUSTED CERTIFICATE-----"
 
 /* Tables for base64 operation */
-static const char base64Table[] = {
+static const unsigned char base64Table[] = {
 	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', //  0 ~ 15
 	'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', // 16 ~ 31
 	'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', // 32 ~ 47
@@ -73,9 +73,9 @@ int get_content_into_buf_PEM(unsigned char* content, cert_svc_mem_buff* cert)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 	char *startPEM, *endPEM;
+	unsigned char* original = NULL;
 	long size = 0;
-	char* original = NULL;
-	char* decoded = NULL;
+	unsigned char* decoded = NULL;
 	int decodedSize = 0;
 	int i = 0, j = 0;
 
@@ -101,8 +101,8 @@ int get_content_into_buf_PEM(unsigned char* content, cert_svc_mem_buff* cert)
 		size = (long)endPEM - (long)startPEM;
 	}
 
-	if(!(original = (char*)malloc(sizeof(char) * (size + 1)))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+	if(!(original = (unsigned char *)malloc(sizeof(unsigned char) * (size + 1)))) {
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -113,28 +113,28 @@ int get_content_into_buf_PEM(unsigned char* content, cert_svc_mem_buff* cert)
 			original[j++] = startPEM[i];
 	}
 
-	size = strlen(original);
+	size = strlen((char *)original);
 	decodedSize = ((size / 4) * 3) + 1;
 
-	if(!(decoded = (char*)malloc(sizeof(char) * decodedSize))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+	if(!(decoded = (unsigned char *)malloc(sizeof(unsigned char) * decodedSize))) {
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	memset(decoded, 0x00, decodedSize);
 	if((ret = cert_svc_util_base64_decode(original, size, decoded, &decodedSize)) != CERT_SVC_ERR_NO_ERROR) {
-		SLOGE("[ERR][%s] Fail to base64 decode.\n", __func__);
+		SLOGE("[ERR][%s] Fail to base64 decode.", __func__);
 		free(decoded);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
 	}
 
-	cert->data = (unsigned char*)decoded;
+	cert->data = decoded;
 	cert->size = decodedSize;
 
 err:
-    if(original != NULL)
-        free(original);
+    free(original);
+
 	return ret;
 }
 
@@ -145,7 +145,7 @@ int get_content_into_buf_DER(unsigned char* content, cert_svc_mem_buff* cert)
 
 	certData = (unsigned char*)malloc(sizeof(unsigned char) * (cert->size));
 	if(certData == NULL) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -163,7 +163,7 @@ int cert_svc_util_get_file_size(const char* filepath, unsigned long int* length)
 	FILE* fp_in = NULL;
 
 	if(!(fp_in = fopen(filepath, "r"))) {
-		SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, filepath);
+		SLOGE("[ERR][%s] Fail to open file, [%s]", __func__, filepath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
@@ -185,7 +185,7 @@ int cert_svc_util_get_extension(const char* filePath, cert_svc_mem_buff* certBuf
     X509 *x = NULL;
 
     if ((in = fopen(filePath, "r")) == NULL) {
-        SLOGE("[ERR] Error opening file %s\n", filePath);
+        SLOGE("[ERR] Error opening file %s", filePath);
         ret = CERT_SVC_ERR_FILE_IO;
         goto end;
     }
@@ -209,7 +209,7 @@ int cert_svc_util_get_extension(const char* filePath, cert_svc_mem_buff* certBuf
         goto end;
     }
 
-    SLOGE("[ERR] Unknown file type: %s\n", filePath);
+    SLOGE("[ERR] Unknown file type: %s", filePath);
     ret = CERT_SVC_ERR_FILE_IO;
 
 end:
@@ -231,35 +231,35 @@ int cert_svc_util_load_file_to_buffer(const char* filePath, cert_svc_mem_buff* c
 
 	/* get file size */
 	if((ret = cert_svc_util_get_file_size(filePath, &fileSize)) != CERT_SVC_ERR_NO_ERROR) {
-		SLOGE("[ERR][%s] Fail to get file size, [%s]\n", __func__, filePath);
+		SLOGE("[ERR][%s] Fail to get file size, [%s]", __func__, filePath);
 		goto err;
 	}
 	certBuf->size = fileSize;
 
 	/* open file and write to buffer */
 	if(!(fp_in = fopen(filePath, "rb"))) {
-		SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, filePath);
+		SLOGE("[ERR][%s] Fail to open file, [%s]", __func__, filePath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
 
 	if(!(content = (unsigned char*)malloc(sizeof(unsigned char) * (unsigned int)(fileSize + 1)))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
     memset(content, 0x00, (fileSize + 1));  //ensuring that content[] will be NULL terminated
 	if(fread(content, sizeof(unsigned char), fileSize, fp_in) != fileSize) {
-		SLOGE("[ERR][%s] Fail to read file, [%s]\n", __func__, filePath);
+		SLOGE("[ERR][%s] Fail to read file, [%s]", __func__, filePath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
-	content[fileSize] = 0; // insert null on the end to make null-terminated string
+    content[fileSize] = 0; // insert null on the end to make null-terminated string
 
 	/* find out certificate type */
 	memset(certBuf->type, 0x00, 4);
     if (cert_svc_util_get_extension(filePath, certBuf) != CERT_SVC_ERR_NO_ERROR) {
-        SLOGE("[ERR] cert_svc_util_get_extension failed to identify %s\n", filePath);
+        SLOGE("[ERR] cert_svc_util_get_extension failed to identify %s", filePath);
         ret = CERT_SVC_ERR_FILE_IO;
         goto err;
     }
@@ -267,13 +267,13 @@ int cert_svc_util_load_file_to_buffer(const char* filePath, cert_svc_mem_buff* c
 	/* load file into buffer */
 	if(!strncmp(certBuf->type, "PEM", sizeof(certBuf->type))) {	// PEM format
 		if((ret = get_content_into_buf_PEM(content, certBuf)) != CERT_SVC_ERR_NO_ERROR) {
-			SLOGE("[ERR][%s] Fail to load file to buffer, [%s]\n", __func__, filePath);
+			SLOGE("[ERR][%s] Fail to load file to buffer, [%s]", __func__, filePath);
 			goto err;
 		}
 	}
 	else if(!strncmp(certBuf->type, "DER", sizeof(certBuf->type))) {	// DER format
 		if((ret = get_content_into_buf_DER(content, certBuf)) != CERT_SVC_ERR_NO_ERROR) {
-			SLOGE("[ERR][%s] Fail to load file to buffer, [%s]\n", __func__, filePath);
+			SLOGE("[ERR][%s] Fail to load file to buffer, [%s]", __func__, filePath);
 			goto err;
 		}
 	}
@@ -298,12 +298,12 @@ int push_cert_into_linked_list(cert_svc_linked_list** certLink, X509* popedCert)
 	int certLen = 0;
 
 	if(!(newNode = (cert_svc_linked_list*)malloc(sizeof(cert_svc_linked_list)))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	if(!(newNode->certificate = (cert_svc_mem_buff*)malloc(sizeof(cert_svc_mem_buff)))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		free(newNode);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
@@ -311,13 +311,13 @@ int push_cert_into_linked_list(cert_svc_linked_list** certLink, X509* popedCert)
 
 	/* get certificate data and store in certLink */
 	if((certLen = i2d_X509(popedCert, NULL)) < 0) {
-		SLOGE("[ERR][%s] Fail to convert certificate.\n", __func__);
+		SLOGE("[ERR][%s] Fail to convert certificate.", __func__);
 		release_cert_list(newNode);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
 	}
 	if(!(bufCert = (unsigned char*)malloc(sizeof(unsigned char) * certLen))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		release_cert_list(newNode);
 		goto err;
@@ -327,6 +327,7 @@ int push_cert_into_linked_list(cert_svc_linked_list** certLink, X509* popedCert)
 
 	newNode->certificate->data = bufCert;
 	newNode->certificate->size = certLen;
+	newNode->next = NULL;
 
 	if(NULL == *certLink) {	// first item
 		*certLink = newNode;
@@ -366,19 +367,19 @@ int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buf
 
 	/* open file and write to buffer */
 	if(!(fp_in = fopen(filePath, "rb"))) {
-		SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, filePath);
+		SLOGE("[ERR][%s] Fail to open file, [%s]", __func__, filePath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
 	if(!(p12 = d2i_PKCS12_fp(fp_in, NULL))) {
-		SLOGE("[ERR][%s] Fail to get certificate data.\n", __func__);
+		SLOGE("[ERR][%s] Fail to get certificate data.", __func__);
 		ret = CERT_SVC_ERR_INVALID_CERTIFICATE;
 		goto err;
 	}
 
 	/* parse PKCS#12 certificate */
 	if((ret = PKCS12_parse(p12, passPhrase, &pkey, &cert, &ca)) != 1) {
-		SLOGE("[ERR][%s] Fail to parse PKCS#12 certificate.\n", __func__);
+		SLOGE("[ERR][%s] Fail to parse PKCS#12 certificate.", __func__);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
 	}
@@ -389,12 +390,12 @@ int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buf
 
 	/* load certificate into buffer */
 	if((certLen = i2d_X509(cert, NULL)) < 0) {
-		SLOGE("[ERR][%s] Fail to convert certificate.\n", __func__);
+		SLOGE("[ERR][%s] Fail to convert certificate.", __func__);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
 	}
 	if(!(bufCert = (unsigned char*)malloc(sizeof(unsigned char) * certLen))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -406,13 +407,13 @@ int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buf
 
 	/* load private key into buffer */
 	if((prikeyLen = i2d_PrivateKey(pkey, NULL)) < 0) {
-		SLOGE("[ERR][%s] Fail to convert private key.\n", __func__);
+		SLOGE("[ERR][%s] Fail to convert private key.", __func__);
 		ret = CERT_SVC_ERR_INVALID_OPERATION;
 		goto err;
 	}
-	SLOGE("[LOG] private key length: [%d]\n", prikeyLen);
+	SLOGE("[LOG] private key length: [%d]", prikeyLen);
 	if(!(bufPrikey = (unsigned char*)malloc(sizeof(unsigned char) * prikeyLen))) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -425,7 +426,7 @@ int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buf
 	/* load ca certificates(if exists) into buffer */
 	while((popedCert = sk_X509_pop(ca)) != NULL) {
 		if((ret = push_cert_into_linked_list(certLink, popedCert)) != CERT_SVC_ERR_NO_ERROR) {
-			SLOGE("[ERR][%s] Fail to make linked list.\n", __func__);
+			SLOGE("[ERR][%s] Fail to make linked list.", __func__);
 			goto err;
 		}
 	}
@@ -441,20 +442,20 @@ err:
 		EVP_PKEY_free(pkey);
 	if(ca != NULL)
 		sk_X509_pop_free(ca, X509_free);
-	EVP_cleanup();
+	//EVP_cleanup();
 
 	return ret;
 }
 
 CERT_SVC_API
-int cert_svc_util_base64_encode(char* in, int inLen, char* out, int* outLen)
+int cert_svc_util_base64_encode(const unsigned char *in, int inLen, unsigned char *out, int *outLen)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 	int inputLen = 0, i = 0;
-	char* cur = NULL;
+	const unsigned char *cur = NULL;
 
 	if((in == NULL) || (inLen < 1)) {
-		SLOGE("[ERR][%s] Check your parameter.\n", __func__);
+		SLOGE("[ERR][%s] Check your parameter.", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
 	}
@@ -494,16 +495,17 @@ int cert_svc_util_base64_encode(char* in, int inLen, char* out, int* outLen)
 err:
 	return ret;
 }
+
 CERT_SVC_API
-int cert_svc_util_base64_decode(char* in, int inLen, char* out, int* outLen)
+int cert_svc_util_base64_decode(const unsigned char *in, int inLen, unsigned char *out, int* outLen)
 {
 	int ret = CERT_SVC_ERR_NO_ERROR;
 	int inputLen = 0, i = 0, j = 0, tail = 0;
-	char* cur = NULL;
-	char tmpBuf[4];
+	const unsigned char *cur = NULL;
+	unsigned char tmpBuf[4];
 
 	if((in == NULL) || (inLen < 1)) {
-		SLOGE("[ERR][%s] Check your parameter.\n", __func__);
+		SLOGE("[ERR][%s] Check your parameter.", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
 	}
@@ -520,7 +522,7 @@ int cert_svc_util_base64_decode(char* in, int inLen, char* out, int* outLen)
 				tmpBuf[j] = 0x00;
 			}
 			else
-				tmpBuf[j] = base64DecodeTable[(int)cur[j]];
+				tmpBuf[j] = (unsigned char)base64DecodeTable[(int)cur[j]];
 		}
 
 		out[i++] = ((tmpBuf[0] & 0x3f) << 2) + ((tmpBuf[1] & 0x30) >> 4);
@@ -543,17 +545,17 @@ err:
 
 // fingerprint format - AA:BB:CC:DD:EE...
 // cert - der(binary) format
-int get_certificate_fingerprint(const char *cert, int cert_size, unsigned char** fingerprint)
+int get_certificate_fingerprint(const unsigned char *cert, int cert_size, char** fingerprint)
 {
 	X509* x509Cert = NULL;
-	unsigned char x509_fingerprint[EVP_MAX_MD_SIZE] = {0,};
-	char* uniformedFingerprint[EVP_MAX_MD_SIZE *3] = {0,};
+	unsigned char x509_fingerprint[EVP_MAX_MD_SIZE] = {0};
+	char uniformedFingerprint[EVP_MAX_MD_SIZE * 3] = {0};
 	int fp_len = 0;
-	int i = 0;
-	char buff[8] = {0,};
-	int x509_length = 0;
+	char buff[8] = {0};
+	unsigned int x509_length = 0;
+	unsigned int i = 0;
 
-	if(d2i_X509(&x509Cert, &cert, cert_size) == NULL)
+	if(!d2i_X509(&x509Cert, &cert, cert_size))
 	{
 		SLOGE("d2i_x509 failed!");
 		*fingerprint = NULL;
@@ -568,15 +570,15 @@ int get_certificate_fingerprint(const char *cert, int cert_size, unsigned char**
 		return CERT_SVC_ERR_INVALID_CERTIFICATE;
 	}
 
-	for(i=0; i < x509_length; i++)
+	for(i = 0; i < x509_length; i++)
 	{
 		snprintf(buff, sizeof(buff), "%02X:", x509_fingerprint[i]);
 		strncat(uniformedFingerprint, buff, 3);
 	}
-	uniformedFingerprint[x509_length*3-1] = 0; // remove last :
+	uniformedFingerprint[x509_length * 3 - 1] = 0; // remove last :
 	fp_len = strlen(uniformedFingerprint);
 
-	*fingerprint = (char*)calloc(sizeof(char),fp_len + 1);
+	*fingerprint = (char*)calloc(sizeof(char), fp_len + 1);
 	if(*fingerprint == NULL)
 	{
 		SLOGE("Failed to allocate memory");
@@ -584,8 +586,8 @@ int get_certificate_fingerprint(const char *cert, int cert_size, unsigned char**
 		*fingerprint = NULL;
 		return CERT_SVC_ERR_MEMORY_ALLOCATION;
 	}
-	
-	memcpy(*fingerprint, uniformedFingerprint, fp_len-1);
+
+	memcpy(*fingerprint, uniformedFingerprint, fp_len + 1);
 
 	SLOGD("fingerprint : %s", *fingerprint);
 
@@ -598,15 +600,10 @@ int get_visibility_by_fingerprint(const char* fingerprint, int* visibility)
 {
 	SLOGD("fingerprint : %s", fingerprint);
 	int ret = 0;
-	xmlChar *xmlPathCertificateSet  = (xmlChar*) "CertificateSet";
-	xmlChar *xmlPathCertificateDomain = (xmlChar*) "CertificateDomain";// name=\"tizen-platform\"";
 	xmlChar *xmlPathDomainPlatform = (xmlChar*) "tizen-platform";
 	xmlChar *xmlPathDomainPublic = (xmlChar*) "tizen-public";
 	xmlChar *xmlPathDomainPartner = (xmlChar*) "tizen-partner";
 	xmlChar *xmlPathDomainDeveloper = (xmlChar*) "tizen-developer";
-	xmlChar *xmlPathDomainTest = (xmlChar*) "tizen-test";
-	xmlChar *xmlPathDomainVerify = (xmlChar*) "tizen-verify";
-	xmlChar *xmlPathFingerPrintSHA1 = (xmlChar*) "FingerprintSHA1";
 
 	/*   load file */
 	xmlDocPtr doc = xmlParseFile("/usr/share/wrt-engine/fingerprint_list.xml");
@@ -636,12 +633,15 @@ int get_visibility_by_fingerprint(const char* fingerprint, int* visibility)
 
 		xmlChar* strLevel = attr->children->content;
 		xmlNodePtr FpPtr = xmlFirstElementChild(curPtr);
+
+		/*
 		if(FpPtr == NULL)
 		{
 			SLOGE("Could not find fingerprint");
 			ret = CERT_SVC_ERR_NO_ROOT_CERT;
 			goto out;
 		}
+		*/
 
 		while(FpPtr)
 		{
@@ -665,17 +665,7 @@ int get_visibility_by_fingerprint(const char* fingerprint, int* visibility)
 					goto out;
 				}
 				else if(!xmlStrcmp(strLevel, xmlPathDomainDeveloper)){
-					*visibility =  CERT_SVC_VISIBILITY_DEVELOPER;
-					ret = CERT_SVC_ERR_NO_ERROR;
-					goto out;
-				}
-				else if(!xmlStrcmp(strLevel, xmlPathDomainTest)){
-					*visibility =  CERT_SVC_VISIBILITY_TEST;
-					ret = CERT_SVC_ERR_NO_ERROR;
-					goto out;
-				}
-				else if(!xmlStrcmp(strLevel, xmlPathDomainVerify)){
-					*visibility =  CERT_SVC_VISIBILITY_VERIFY;
+					*visibility = CERT_SVC_VISIBILITY_DEVELOPER;
 					ret = CERT_SVC_ERR_NO_ERROR;
 					goto out;
 				}
@@ -685,6 +675,8 @@ int get_visibility_by_fingerprint(const char* fingerprint, int* visibility)
 		curPtr = xmlNextElementSibling(curPtr);
 	}
 
+	SLOGE("Could not find fingerrpint");
+	
 	xmlFreeDoc(doc);
 	return CERT_SVC_ERR_NO_ROOT_CERT;
 
@@ -693,9 +685,82 @@ out:
 	return ret;
 }
 
+int get_type_by_fingerprint(const char* fingerprint, int* cert_type)
+{
+	int ret = CERT_SVC_ERR_NO_ERROR;
+	xmlChar *xmlPathDomainTest = (xmlChar*) "tizen-test";
+	xmlChar *xmlPathDomainVerify = (xmlChar*) "tizen-verify";
+	xmlChar *xmlPathDomainStore = (xmlChar*) "tizen-store";
+
+	/*	 load file */
+	xmlDocPtr doc = xmlParseFile("/usr/share/wrt-engine/fingerprint_list.xml");
+	if ((doc == NULL) || (xmlDocGetRootElement(doc) == NULL))
+	{
+		SLOGE("Failed to prase fingerprint_list.xml");
+		return CERT_SVC_ERR_FILE_IO;
+	}
+
+	xmlNodePtr curPtr = xmlFirstElementChild(xmlDocGetRootElement(doc));
+	if(curPtr == NULL)
+	{
+		SLOGE("Can not find root");
+		xmlFreeDoc(doc);
+		return CERT_SVC_ERR_FILE_IO;
+	}
+
+	while(curPtr != NULL)
+	{
+		xmlAttr* attr = curPtr->properties;
+		if(!attr->children || !attr->children->content)
+		{
+			SLOGE("Failed to get fingerprints from list");
+			ret = CERT_SVC_ERR_NO_ROOT_CERT;
+			goto out;
+		}
+
+		xmlChar* strLevel = attr->children->content;
+		xmlNodePtr FpPtr = xmlFirstElementChild(curPtr);
+
+		while(FpPtr)
+		{
+			xmlChar *content = xmlNodeGetContent(FpPtr);
+			if(xmlStrcmp(content, (xmlChar*)fingerprint) == 0)
+			{
+				SLOGD("fingerprint : %s matched %s", content, strLevel);
+				if(!xmlStrcmp(strLevel, xmlPathDomainTest)){
+					*cert_type = CERT_SVC_TYPE_TEST;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainVerify)){
+					*cert_type = CERT_SVC_TYPE_VERIFY;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+				else if(!xmlStrcmp(strLevel, xmlPathDomainStore)){
+					*cert_type = CERT_SVC_TYPE_STORE;
+					ret = CERT_SVC_ERR_NO_ERROR;
+					goto out;
+				}
+			}
+			FpPtr = xmlNextElementSibling(FpPtr);
+		}
+		curPtr = xmlNextElementSibling(curPtr);
+	}
+
+	SLOGD("Could not find fingerprint");
+	xmlFreeDoc(doc);
+	*cert_type = CERT_SVC_TYPE_NO_TYPE;
+	return CERT_SVC_ERR_NO_ERROR;
+
+out:
+	xmlFreeDoc(doc);
+	return ret;
+}
+
 
 // expect input cert data is base64 encoded format
-int get_visibility_by_certificate(const char* cert_data, int data_len, int* visibility)
+int get_visibility_by_certificate(const unsigned char *cert_data, int data_len, int* visibility)
 {
 	if(!cert_data || !data_len)
 	{
@@ -703,11 +768,11 @@ int get_visibility_by_certificate(const char* cert_data, int data_len, int* visi
 	}
 
 	int decodedSize = ((data_len / 4) * 3) + 1;
-	char* decoded = NULL;
-	char* fingerprint = NULL;
+	unsigned char *decoded = NULL;
+	char *fingerprint = NULL;
 	int ret = CERT_SVC_ERR_NO_ERROR;
 
-	if(!(decoded = (char*)malloc(sizeof(char) * decodedSize))) {
+	if(!(decoded = (unsigned char *)malloc(sizeof(unsigned char) * decodedSize))) {
 		SLOGE("Fail to allocate memory.");
 		return CERT_SVC_ERR_MEMORY_ALLOCATION;
 	}

@@ -20,11 +20,16 @@
  * @brief       Search for author-signature.xml and signatureN.xml files.
  */
 #include <vcore/SignatureFinder.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
+#include <stddef.h>
+#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #include <istream>
+#include <sstream>
+#include <memory>
+#include <functional>
 
 #include <pcrecpp.h>
 
@@ -51,23 +56,25 @@ private:
 
 SignatureFinder::Result SignatureFinder::Impl::find(SignatureFileInfoSet &set)
 {
-    DIR *dp;
+    std::unique_ptr<DIR, std::function<int(DIR*)>>
+        dp(::opendir(m_dir.c_str()), ::closedir);
 
-    /*
-     * find a dir
-     */
-    if ((dp = opendir(m_dir.c_str())) == NULL) {
-        LogError("Error opening directory:" << m_dir);
+    if (dp.get() == NULL) {
+        WrtLogE("Error opening directory: %s", m_dir.c_str());
         return ERROR_OPENING_DIR;
     }
 
-	struct dirent entry;
+    size_t len = offsetof(struct dirent, d_name)
+        + pathconf(m_dir.c_str(), _PC_NAME_MAX) + 1;
+
+    std::unique_ptr<struct dirent, std::function<void(void*)>>
+        pEntry(static_cast<struct dirent *>(::malloc(len)), ::free);
+
     struct dirent *dirp = NULL;
-    while (readdir_r(dp, &entry, &dirp) == 0 && dirp) {
-        /**
-         * check if it's author signature
-         */
-        if (!strcmp(dirp->d_name, SIGNATURE_AUTHOR)) {
+
+    int ret = 0;
+    while ((ret = readdir_r(dp.get(), pEntry.get(), &dirp)) == 0 && dirp) {
+        if (strcmp(dirp->d_name, SIGNATURE_AUTHOR) == 0) {
             set.insert(SignatureFileInfo(std::string(dirp->d_name), -1));
             continue;
         }
@@ -78,16 +85,18 @@ SignatureFinder::Result SignatureFinder::Impl::find(SignatureFileInfoSet &set)
             int number;
             stream >> number;
 
-            if (stream.fail()) {
-                closedir(dp);
+            if (stream.fail())
                 return ERROR_ISTREAM;
-            }
 
             set.insert(SignatureFileInfo(std::string(dirp->d_name), number));
         }
     }
 
-    closedir(dp);
+    if (ret != 0) {
+        WrtLogE("Error in readdir_r");
+        return ERROR_READING_DIR;
+    }
+
     return NO_ERROR;
 }
 

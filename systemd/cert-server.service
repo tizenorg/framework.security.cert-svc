@@ -1,0 +1,12 @@
+[Unit]
+Description=Start cert server for cert-svc managing root ssl certs
+
+[Service]
+ExecStart=/usr/bin/cert-server
+User=system
+Group=system
+SmackProcessLabel=cert-svc
+Sockets=cert-server.socket
+
+[Install]
+WantedBy=multi-user.target

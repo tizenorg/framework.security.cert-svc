@@ -24,6 +24,7 @@
 #include <dpl/log/vcore_log.h>
 
 #include <stddef.h>
+#include <cstdio>
 
 namespace ValidationCore {
 Exception* Exception::m_lastException = NULL;
@@ -32,6 +33,7 @@ void (*Exception::m_terminateHandler)() = NULL;
 
 void LogUnhandledException(const std::string &str)
 {
+    // Logging to dlog
     VcoreLogD("%s", str.c_str());
 }
 
@@ -40,6 +42,7 @@ void LogUnhandledException(const std::string &str,
                            int line,
                            const char *function)
 {
-    VcoreLogE("%s", str.c_str());
+    // Logging to dlog
+    VcoreLogE("[%s:%d][%s]%s", filename, line, function, str.c_str());
 }
 } // namespace ValidationCore

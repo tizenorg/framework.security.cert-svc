@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011 Samsung Electronics Co., Ltd All Rights Reserved
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd All Rights Reserved
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -46,9 +46,7 @@
 #include <openssl/bio.h>
 
 #include <dpl/foreach.h>
-#include <dpl/log/log.h>
-
-#include <cert-service-debug.h>
+#include <dpl/log/wrt_log.h>
 
 #include <cert-svc/cinstance.h>
 #include <cert-svc/ccert.h>
@@ -59,6 +57,9 @@
 #include <vcore/Certificate.h>
 #include <vcore/CertificateCollection.h>
 #include <vcore/pkcs12.h>
+#ifndef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+#include <vcore/CachedRootCerts.h>
+#endif
 
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL 
 #include <cert-svc/ccrl.h>
@@ -70,6 +71,11 @@
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+
+#define START_CERT      "-----BEGIN CERTIFICATE-----"
+#define END_CERT        "-----END CERTIFICATE-----"
+#define START_TRUSTED   "-----BEGIN TRUSTED CERTIFICATE-----"
+#define END_TRUSTED     "-----END TRUSTED CERTIFICATE-----"
 
 #ifndef LOG_TAG
 #define LOG_TAG "CERT_SVC"
@@ -245,7 +251,6 @@ public:
         }
 
         auto certPtr = iter->second;
-
         std::string result;
         switch (field) {
             case CERTSVC_SUBJECT:
@@ -284,7 +289,6 @@ public:
             case CERTSVC_ISSUER_ORGANIZATION_UNIT_NAME:
                 result = certPtr->getOrganizationalUnitName(Certificate::FIELD_ISSUER);
                 break;
-
             case CERTSVC_VERSION:
             {
                 std::stringstream stream;
@@ -468,7 +472,7 @@ public:
             fieldId = SUBJECT_COMMONNAME;
             break;
         default:
-            LogError("Not implemented!");
+            WrtLogE("Not implemented!");
             return CERTSVC_WRONG_ARGUMENT;
         }
 
@@ -476,16 +480,16 @@ public:
                           cert_svc_cert_context_final);
 
         if (ctx.get() == NULL) {
-            LogWarning("Error in cert_svc_cert_context_init.");
+            WrtLogW("Error in cert_svc_cert_context_init.");
             return CERTSVC_FAIL;
         }
 
-        LogDebug("Match string: " << value);
+        WrtLogD("Match string: %s", value);
         result = cert_svc_search_certificate(ctx.get(), fieldId, const_cast<char*>(value));
-        LogDebug("Search finished!");
+        WrtLogD("Search finished!");
 
         if (CERT_SVC_ERR_NO_ERROR != result) {
-            LogWarning("Error during certificate search");
+            WrtLogW("Error during certificate search");
             return CERTSVC_FAIL;
         }
 
@@ -500,7 +504,7 @@ public:
             ScopedCertCtx ctx2(cert_svc_cert_context_init(),
                                cert_svc_cert_context_final);
             if (ctx2.get() == NULL) {
-                LogWarning("Error in cert_svc_cert_context_init.");
+                WrtLogW("Error in cert_svc_cert_context_init.");
                 return CERTSVC_FAIL;
             }
 
@@ -508,7 +512,7 @@ public:
             if (CERT_SVC_ERR_NO_ERROR !=
                 cert_svc_load_file_to_context(ctx2.get(), fileList->filename))
             {
-                LogWarning("Error in cert_svc_load_file_to_context");
+                WrtLogW("Error in cert_svc_load_file_to_context");
                 return CERTSVC_FAIL;
             }
             int certId = addCert(CertificatePtr(new Certificate(*(ctx2.get()->certBuf))));
@@ -982,34 +986,34 @@ public:
     int getVisibility(CertSvcCertificate certificate, int* visibility)
     {
 		int ret = CERTSVC_FAIL;
-		xmlChar *xmlPathCertificateSet  = (xmlChar*) "CertificateSet";
-		xmlChar *xmlPathCertificateDomain = (xmlChar*) "CertificateDomain";// name=\"tizen-platform\"";
+		//xmlChar *xmlPathCertificateSet  = (xmlChar*) "CertificateSet"; /*unused variable*/
+		//xmlChar *xmlPathCertificateDomain = (xmlChar*) "CertificateDomain";// name=\"tizen-platform\""; /*unused variable*/
 		xmlChar *xmlPathDomainPlatform = (xmlChar*) "tizen-platform";
 		xmlChar *xmlPathDomainPublic = (xmlChar*) "tizen-public";
 		xmlChar *xmlPathDomainPartner = (xmlChar*) "tizen-partner";
 		xmlChar *xmlPathDomainDeveloper = (xmlChar*) "tizen-developer";
-		xmlChar *xmlPathFingerPrintSHA1 = (xmlChar*) "FingerprintSHA1";
+		//xmlChar *xmlPathFingerPrintSHA1 = (xmlChar*) "FingerprintSHA1"; /*unused variable*/
 
-		CertificatePtr certPtr = m_certificateMap[0];
-		if(certPtr == NULL)
-		{
-			SLOGE("Invalid Parameter. certificate is not initialized");
+        auto iter = m_certificateMap.find(certificate.privateHandler);
+        if (iter == m_certificateMap.end()) {
 			return CERTSVC_FAIL;
-		}
+        }
+        CertificatePtr certPtr = iter->second;
+
 		std::string fingerprint = Certificate::FingerprintToColonHex(certPtr->getFingerprint(Certificate::FINGERPRINT_SHA1));
 
 		/*   load file */
 		xmlDocPtr doc = xmlParseFile("/usr/share/wrt-engine/fingerprint_list.xml");
 		if ((doc == NULL) || (xmlDocGetRootElement(doc) == NULL))
 		{
-			SLOGE("Failed to prase fingerprint_list.xml\n");
+			WrtLogE("Failed to prase fingerprint_list.xml");
 			return CERTSVC_IO_ERROR;
 		}
 
 		xmlNodePtr curPtr = xmlFirstElementChild(xmlDocGetRootElement(doc));
 		if(curPtr == NULL)
 		{
-			SLOGE("Can not find root");
+			WrtLogE("Can not find root");
 			ret = CERTSVC_IO_ERROR;
 			goto out;
 		}
@@ -1019,7 +1023,7 @@ public:
 			xmlAttr* attr = curPtr->properties;
 			if(!attr->children || !attr->children->content)
 			{
-				SLOGE("Failed to get fingerprints from list");
+				WrtLogE("Failed to get fingerprints from list");
 				ret = CERTSVC_FAIL;
 				goto out;
 			}
@@ -1028,18 +1032,18 @@ public:
 			xmlNodePtr FpPtr = xmlFirstElementChild(curPtr);
 			if(FpPtr == NULL)
 			{
-				SLOGE("Could not find fingerprint");
+				WrtLogE("Could not find fingerprint");
 				ret = CERTSVC_FAIL;
 				goto out;
 			}
 
-			SLOGD("Retrieve level : %s", strLevel);
+			WrtLogD("Retrieve level : %s", strLevel);
 			while(FpPtr)
 			{
 				xmlChar *content = xmlNodeGetContent(FpPtr);
 				if(xmlStrcmp(content, (xmlChar*)fingerprint.c_str()) == 0)
 				{
-					SLOGD("fingerprint : %s are %s", content, strLevel);
+					WrtLogD("fingerprint : %s are %s", content, strLevel);
 					if(!xmlStrcmp(strLevel, xmlPathDomainPlatform))
 					{
 						*visibility = CERTSVC_VISIBILITY_PLATFORM;
@@ -1093,6 +1097,33 @@ out:
     {
       return c_certsvc_pkcs12_import(path.privateHandler, pass.privateHandler, pfxIdString.privateHandler);
     }
+
+#ifdef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+    inline int pkcsNameIsUniqueInStore(
+        CertStoreType storeType,
+        CertSvcString pfxIdString,
+        int *is_unique)
+    {
+      int result = c_certsvc_pkcs12_alias_exists_in_store(storeType, pfxIdString.privateHandler, is_unique);
+      return result;
+    }
+
+    inline int getCertDetailFromStore(CertStoreType storeType,
+        CertSvcString gname,
+        char** certBuffer,
+        size_t* certSize)
+    {
+        return c_certsvc_pkcs12_get_certificate_buffer_from_store(storeType, gname.privateHandler, certBuffer, certSize);
+    }
+
+    inline int pkcsDeleteCertFromStore(
+        CertStoreType storeType,
+        CertSvcString gname
+    )
+    {
+        return c_certsvc_pkcs12_delete_certificate_from_store(storeType, gname.privateHandler);
+    }
+#endif
 
     inline int getPkcsIdList(
         CertSvcInstance &instance,
@@ -1177,6 +1208,190 @@ out:
       return c_certsvc_pkcs12_delete(pfxIdString.privateHandler);
     }
 
+#ifdef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+    inline int pkcsImportToStore(
+        CertStoreType storeType,
+        CertSvcString path,
+        CertSvcString pass,
+        CertSvcString pfxIdString)
+    {
+        return c_certsvc_pkcs12_import_from_file_to_store(storeType, path.privateHandler, pass.privateHandler, pfxIdString.privateHandler);
+    }
+
+    inline int pkcsGetAliasNameForCertInStore(CertStoreType storeType,
+        CertSvcString gname,
+        char **alias)
+    {
+        return c_certsvc_pkcs12_get_certificate_alias_from_store(storeType, gname.privateHandler, alias);
+    }
+
+    inline int pkcsSetCertStatusToStore(CertStoreType storeType,
+        int is_root_app,
+    	CertSvcString gname,
+        CertStatus status)
+    {
+        return c_certsvc_pkcs12_set_certificate_status_to_store(storeType, is_root_app, gname.privateHandler, status);
+    }
+
+    inline int pkcsGetCertStatusFromStore(
+        CertStoreType storeType,
+        CertSvcString gname,
+        int *status)
+    {
+        return c_certsvc_pkcs12_get_certificate_status_from_store(storeType, gname.privateHandler, status);
+    }
+
+    inline int getCertFromStore(CertSvcInstance instance,
+        CertStoreType storeType,
+        char *gname,
+        CertSvcCertificate *certificate)
+    {
+	    return certsvc_get_certificate(instance, storeType, gname, certificate);
+    }
+
+    inline int freePkcsIdListFromStore(
+        CertSvcStoreCertList** certList)
+    {
+        return c_certsvc_pkcs12_free_aliases_loaded_from_store(certList);
+    }
+
+    inline int getPkcsIdListFromStore(
+        CertStoreType storeType,
+        int is_root_app,
+        CertSvcStoreCertList** certList,
+        int* length)
+    {
+        return c_certsvc_pkcs12_get_certificate_list_from_store(storeType, is_root_app, certList, length);
+    }
+
+    inline int getPkcsIdEndUserListFromStore(
+        CertStoreType storeType,
+        CertSvcStoreCertList** certList,
+        int* length)
+    {
+        return c_certsvc_pkcs12_get_end_user_certificate_list_from_store(storeType, certList, length);
+    }
+
+    inline int getPkcsIdRootListFromStore(
+        CertStoreType storeType,
+        CertSvcStoreCertList** certList,
+        int* length)
+    {
+        return c_certsvc_pkcs12_get_root_certificate_list_from_store(storeType, certList, length);
+    }
+
+    inline int getPkcsPrivateKeyFromStore(
+        CertStoreType storeType,
+        CertSvcString gname,
+        char **certBuffer,
+        size_t *certSize)
+    {
+        return c_certsvc_pkcs12_private_key_load_from_store(storeType, gname.privateHandler, certBuffer, certSize);
+    }
+
+    inline int getPkcsCertificateListFromStore(
+        CertSvcInstance &instance,
+        CertStoreType storeType,
+        CertSvcString &pfxIdString,
+        CertSvcCertificateList *handler)
+    {
+        char **certs;
+        gsize i, ncerts;
+        std::vector<CertificatePtr> certPtrVector;
+        std::vector<int> listId;
+        char *certBuffer = NULL;
+        size_t certLength = 0;
+        CertSvcString Alias;
+        char* header = NULL;
+        char* trailer = NULL;
+        const char* headEnd = NULL;
+        const char* tailEnd = NULL;
+        int length = 0;
+        int result;
+
+        result = c_certsvc_pkcs12_load_certificates_from_store(storeType, pfxIdString.privateHandler, &certs, &ncerts);
+        if (result != CERTSVC_SUCCESS) {
+            WrtLogE("Unable to load certificates from store.");
+            return result;
+        }
+
+        for (i = 0; i < ncerts; i++) {
+            Alias.privateHandler = certs[i];
+            Alias.privateLength = strlen(certs[i]);
+            result = certsvc_pkcs12_get_certificate_info_from_store(instance, storeType, Alias, &certBuffer, &certLength);
+            if (result != CERTSVC_SUCCESS || !certBuffer) {
+                WrtLogE("Failed to get certificate buffer.");
+                return CERTSVC_FAIL;
+            }
+
+            header = strstr(certBuffer, START_CERT);
+            headEnd = START_CERT;
+            if (header == NULL) {
+                // START_CERT not found. let's find START_TRUSTED.
+                header = strstr(certBuffer, START_TRUSTED);
+                headEnd = START_TRUSTED;
+            }
+
+            if (header == NULL) {
+                WrtLogE("Invalid format of certificate. alias[%s]", certs[i]);
+                return CERTSVC_FAIL;
+            }
+
+            // START_something found. let's find END_CERT first.
+            trailer = strstr(header, END_CERT);
+            tailEnd = END_CERT;
+
+            if (trailer == NULL) {
+                // END_CERT not found. let's find END_TRUSTED.
+                trailer = strstr(header, END_TRUSTED);
+                tailEnd = END_TRUSTED;
+            }
+
+            if (trailer == NULL
+                || (strcmp(headEnd, START_CERT) == 0 && strcmp(tailEnd, END_TRUSTED) == 0)
+                || (strcmp(headEnd, START_TRUSTED) == 0 && strcmp(tailEnd, END_CERT) == 0)) {
+                WrtLogE("Invalid format of certificate. alias[%s]", certs[i]);
+                return CERTSVC_FAIL;
+            }
+
+            std::string binary(certBuffer);
+
+            length = strlen(header) - strlen(headEnd) - strlen(tailEnd);
+
+            certPtrVector.push_back(CertificatePtr(
+                    new Certificate(
+                        binary.substr(strlen(headEnd), length),
+                        Certificate::FORM_BASE64)));
+
+            free(certBuffer);
+            certBuffer = NULL;
+        }
+
+        if (ncerts > 0)
+            c_certsvc_pkcs12_free_certificates(certs);
+
+        FOREACH(it, certPtrVector) {
+            listId.push_back(addCert(*it));
+        }
+
+        int position = m_idListCounter++;
+        m_idListMap[position] = listId;
+
+        handler->privateInstance = instance;
+        handler->privateHandler = position;
+
+        return result;
+    }
+
+    inline bool checkValidStoreType(CertStoreType storeType)
+    {
+        if (storeType >= VPN_STORE && storeType <= ALL_STORE)
+            return true;
+        else
+            return false;
+    }
+#endif
+
 private:
     int m_certificateCounter;
     std::map<int, CertificatePtr> m_certificateMap;
@@ -1207,7 +1422,6 @@ int certsvc_instance_new(CertSvcInstance *instance) {
     if (init) {
         SSL_library_init();     // required by message verification
         OpenSSL_add_all_digests();
-        g_type_init();          // required by libsoup/ocsp
         init = 0;
     }
     try {
@@ -1490,14 +1704,14 @@ int certsvc_pkcs12_dup_evp_pkey(
         &size);
 
     if (result != CERTSVC_SUCCESS) {
-        LogError("Error in certsvc_pkcs12_private_key_dup");
+        WrtLogE("Error in certsvc_pkcs12_private_key_dup");
         return result;
     }
 
     BIO *b = BIO_new(BIO_s_mem());
 
     if ((int)size != BIO_write(b, buffer, size)) {
-        LogError("Error in BIO_write");
+        WrtLogE("Error in BIO_write");
         BIO_free_all(b);
         certsvc_pkcs12_private_key_free(buffer);
         return CERTSVC_FAIL;
@@ -1513,8 +1727,7 @@ int certsvc_pkcs12_dup_evp_pkey(
         return CERTSVC_SUCCESS;
     }
 
-    LogError("Result is null. Openssl REASON code is: "
-        << ERR_GET_REASON(ERR_peek_last_error()));
+    WrtLogE("Result is null. Openssl REASON code is: %d", ERR_GET_REASON(ERR_peek_last_error()));
 
     return CERTSVC_FAIL;
 }
@@ -1693,7 +1906,7 @@ int certsvc_certificate_get_visibility(CertSvcCertificate certificate, int* visi
         return impl(certificate.privateInstance)->getVisibility(certificate, visibility);
     } catch (...)
 	{
-		SLOGE("exception occur");
+		WrtLogE("exception occur");
 	}
     return CERTSVC_FAIL;
 }
@@ -1718,6 +1931,370 @@ int certsvc_pkcs12_import_from_file(CertSvcInstance instance,
     } catch (...) {}
     return CERTSVC_FAIL;
 }
+
+#ifdef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+int certsvc_get_certificate(CertSvcInstance instance,
+    CertStoreType storeType,
+    char *gname,
+    CertSvcCertificate *certificate)
+{
+    int result = CERTSVC_SUCCESS;
+    char* certBuffer = NULL;
+    std::string fileName;
+    size_t length = 0;
+    FILE* fp_write = NULL;
+    BIO* pBio = NULL;
+    X509* x509Struct = NULL;
+
+    try {
+        result = c_certsvc_pkcs12_get_certificate_buffer_from_store(storeType, gname, &certBuffer, &length);
+        if (result != CERTSVC_SUCCESS) {
+            WrtLogE("Failed to get certificate buffer from store.");
+            return result;
+        }
+
+        pBio = BIO_new(BIO_s_mem());
+        if (pBio == NULL) {
+            WrtLogE("Failed to allocate memory.");
+            result = CERTSVC_BAD_ALLOC;
+        }
+
+        length = BIO_write(pBio, (const void *)certBuffer, (int)length);
+        if ((int)length < 1) {
+            WrtLogE("Failed to load cert into bio.");
+            result = CERTSVC_BAD_ALLOC;
+        }
+
+        x509Struct = PEM_read_bio_X509(pBio, NULL, 0, NULL);
+        if (x509Struct != NULL) {
+            CertificatePtr cert(new Certificate(x509Struct));
+            certificate->privateInstance = instance;
+            certificate->privateHandler = impl(instance)->addCert(cert);
+            if (certBuffer!=NULL) free(certBuffer);
+        }
+        else {
+            fileName.append("/opt/share/cert-svc/pkcs12/");
+            fileName.append(gname);
+            if (!(fp_write = fopen(fileName.c_str(), "w"))) {
+                WrtLogE("Failed to open the file for writing, [%s].", fileName.c_str());
+                result = CERTSVC_FAIL;
+                goto error;
+            }
+
+            if (fwrite(certBuffer, sizeof(char), length, fp_write) != length) {
+                WrtLogE("Fail to write certificate.");
+                result = CERTSVC_FAIL;
+                goto error;
+            }
+
+            fclose(fp_write);
+            result = certsvc_certificate_new_from_file(instance, fileName.c_str(), certificate);
+            if (result != CERTSVC_SUCCESS) {
+                WrtLogE("Failed to construct certificate from buffer.");
+                goto error;
+            }
+            unlink(fileName.c_str());
+        }
+        result = CERTSVC_SUCCESS;
+    } catch (std::bad_alloc &) {
+        return CERTSVC_BAD_ALLOC;
+    } catch (...) {}
+
+error:
+    if (x509Struct) X509_free(x509Struct);
+    if (pBio) BIO_free(pBio);
+    return result;
+}
+
+int certsvc_pkcs12_check_alias_exists_in_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString pfxIdString,
+    int *is_unique)
+{
+    if (pfxIdString.privateHandler == NULL || pfxIdString.privateLength<=0) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+
+        return impl(instance)->pkcsNameIsUniqueInStore(storeType, pfxIdString, is_unique);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_free_certificate_list_loaded_from_store(CertSvcInstance instance,
+    CertSvcStoreCertList** certList)
+{
+    if (*certList == NULL) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        return impl(instance)->freePkcsIdListFromStore(certList);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_certificate_list_from_store(CertSvcInstance instance,
+	CertStoreType storeType,
+    int is_root_app,
+	CertSvcStoreCertList** certList,
+	int* length)
+{
+    if (*certList != NULL) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+
+        return impl(instance)->getPkcsIdListFromStore(storeType, is_root_app, certList, length);
+    } catch (...) {}
+
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_end_user_certificate_list_from_store(CertSvcInstance instance,
+	CertStoreType storeType,
+	CertSvcStoreCertList** certList,
+	int* length)
+{
+    if (*certList != NULL) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+
+        return impl(instance)->getPkcsIdEndUserListFromStore(storeType, certList, length);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_root_certificate_list_from_store(CertSvcInstance instance,
+	CertStoreType storeType,
+	CertSvcStoreCertList** certList,
+	int* length)
+{
+    if (*certList != NULL) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+
+        return impl(instance)->getPkcsIdRootListFromStore(storeType, certList, length);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_certificate_info_from_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString gname,
+    char**  certBuffer,
+    size_t* certSize)
+{
+    if (*certBuffer != NULL) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+
+        return impl(instance)->getCertDetailFromStore(storeType, gname, certBuffer, certSize);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_delete_certificate_from_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString gname)
+{
+     try {
+         if (!impl(instance)->checkValidStoreType(storeType)) {
+             WrtLogE("Invalid input parameter.");
+             return CERTSVC_INVALID_STORE_TYPE;
+         }
+         return impl(instance)->pkcsDeleteCertFromStore(storeType, gname);
+     } catch (...) {}
+     return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_import_from_file_to_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString path,
+    CertSvcString password,
+    CertSvcString pfxIdString)
+{
+    try {
+        if (path.privateHandler != NULL) {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->pkcsImportToStore(storeType, path, password, pfxIdString);
+    }
+    else
+        return CERTSVC_FAIL;
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_alias_name_for_certificate_in_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString gname,
+    char **alias)
+{
+    if (gname.privateHandler == NULL || gname.privateLength<=0) {
+        WrtLogE("Invalid input parameter.");
+        return CERTSVC_WRONG_ARGUMENT;
+    }
+
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->pkcsGetAliasNameForCertInStore(storeType, gname, alias);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_set_certificate_status_to_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    int is_root_app,
+    CertSvcString gname,
+    CertStatus status)
+{
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->pkcsSetCertStatusToStore(storeType, is_root_app, gname, status);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_certificate_status_from_store(
+    CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString gname,
+    int *status)
+{
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->pkcsGetCertStatusFromStore(storeType, gname, status);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_get_certificate_from_store(CertSvcInstance instance,
+    CertStoreType storeType,
+    char *gname,
+    CertSvcCertificate *certificate)
+{
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->getCertFromStore(instance, storeType, gname, certificate);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_load_certificate_list_from_store(
+    CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString pfxIdString,
+    CertSvcCertificateList *certificateList)
+{
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->getPkcsCertificateListFromStore(instance, storeType, pfxIdString, certificateList);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_private_key_dup_from_store(
+    CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString gname,
+    char **certBuffer,
+    size_t *certSize)
+{
+    try {
+        if (!impl(instance)->checkValidStoreType(storeType)) {
+            WrtLogE("Invalid input parameter.");
+            return CERTSVC_INVALID_STORE_TYPE;
+        }
+        return impl(instance)->getPkcsPrivateKeyFromStore(storeType, gname, certBuffer, certSize);
+    } catch (...) {}
+    return CERTSVC_FAIL;
+}
+
+int certsvc_pkcs12_dup_evp_pkey_from_store(
+    CertSvcInstance instance,
+    CertStoreType storeType,
+    CertSvcString gname,
+    EVP_PKEY** pkey)
+{
+    char *buffer = NULL;
+    size_t size;
+
+    int result = certsvc_pkcs12_private_key_dup_from_store(instance, storeType, gname, &buffer, &size);
+    if (result != CERTSVC_SUCCESS) {
+        WrtLogE("Error in certsvc_pkcs12_private_key_dup");
+        return result;
+    }
+
+    BIO *b = BIO_new(BIO_s_mem());
+    if ((int)size != BIO_write(b, buffer, size)) {
+         WrtLogE("Error in BIO_write");
+         BIO_free_all(b);
+         certsvc_pkcs12_private_key_free(buffer);
+         return CERTSVC_FAIL;
+    }
+
+    certsvc_pkcs12_private_key_free(buffer);
+    *pkey = PEM_read_bio_PrivateKey(b, NULL, NULL, NULL);
+    BIO_free_all(b);
+    if (*pkey)
+        return CERTSVC_SUCCESS;
+
+    WrtLogE("Result is null. Openssl REASON code is: %d", ERR_GET_REASON(ERR_peek_last_error()));
+    return CERTSVC_FAIL;
+}
+#endif
 
 int certsvc_pkcs12_get_id_list(
     CertSvcInstance instance,
@@ -1785,3 +2362,4 @@ int certsvc_pkcs12_delete(
     } catch (...) {}
     return CERTSVC_FAIL;
 }
+

@@ -43,7 +43,7 @@ int get_file_full_path(char* originalName, const char* location, char* outBuf)
 	int nameSize = 0 ;
 
 	if (originalName  == NULL) {
-		SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.\n", __func__);
+		SLOGE("[ERR][%s] Check your parameter. Maybe file path is NULL.", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
 	}
@@ -51,7 +51,7 @@ int get_file_full_path(char* originalName, const char* location, char* outBuf)
 	nameSize = strlen(originalName);
 
 	if (nameSize <= 0 || nameSize >= CERT_SVC_MAX_FILE_NAME_SIZE) {
-		SLOGE("[ERR][%s] Check your parameter. File path is too long.\n", __func__);
+		SLOGE("[ERR][%s] Check your parameter. File path is too long.", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
 	}
@@ -66,7 +66,7 @@ int get_file_full_path(char* originalName, const char* location, char* outBuf)
 		int locSize = strlen(location) + strlen(CERT_SVC_STORE_PATH);
 
 		if (locSize <= 0 || locSize >= CERT_SVC_MAX_FILE_NAME_SIZE) {
-			SLOGE("[ERR][%s] Check your parameter. Location is too long.\n", __func__);
+			SLOGE("[ERR][%s] Check your parameter. Location is too long.", __func__);
 			ret = CERT_SVC_ERR_INVALID_PARAMETER;
 			goto err;
 		}
@@ -76,22 +76,20 @@ int get_file_full_path(char* originalName, const char* location, char* outBuf)
 		strncpy(buf, CERT_SVC_STORE_PATH, sizeof(buf) - 1);
 
 		token = strtok_r(pathLocation, seps, &context);
-
-		while(token) {
-			if((strlen(buf) + strlen(token)) < (CERT_SVC_MAX_FILE_NAME_SIZE - 1)) {
-					strncat(buf, token, strlen(token));
-					strncat(buf, "/", 1);
-					token = strtok_r(NULL, seps, &context);
-			}
-			else {
-				ret = CERT_SVC_ERR_INVALID_PARAMETER;
-				goto err;
-			}
+        size_t sizeBuf = sizeof(buf);
+		while (token) {
+            if (sizeBuf < (strlen(buf) + strlen(token) + 2)) {
+                ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
+                goto err;
+            }
+			strncat(buf, token, strlen(token));
+			strncat(buf, "/", 1);
+			token = strtok_r(NULL, seps, &context);
 		}
 	}
 
 	if ((nameSize + strlen(buf)) >= CERT_SVC_MAX_FILE_NAME_SIZE) {
-		SLOGE("[ERR][%s] Check your parameter. File path is too long.\n", __func__);
+		SLOGE("[ERR][%s] Check your parameter. File path is too long.", __func__);
 		ret = CERT_SVC_ERR_INVALID_PARAMETER;
 		goto err;
 	}
@@ -119,7 +117,7 @@ int _add_certificate_to_store(const char* filePath, const char* location)
 	/* initialize variable */
 	fileFullPath = (char*)malloc(sizeof(char) * CERT_SVC_MAX_FILE_NAME_SIZE);
 	if(fileFullPath == NULL) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -128,7 +126,7 @@ int _add_certificate_to_store(const char* filePath, const char* location)
 	/* get real file name */
 	realFileName = strrchr(filePath, '/');
 	if(realFileName == NULL) {
-		SLOGE("[ERR][%s] File path MUST be absolute path\n", __func__);
+		SLOGE("[ERR][%s] File path MUST be absolute path", __func__);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
@@ -138,12 +136,12 @@ int _add_certificate_to_store(const char* filePath, const char* location)
 
 	/* file open and write */
 	if(!(fp_in = fopen(filePath, "rb"))) {
-		SECURE_SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, filePath);
+		SECURE_SLOGE("[ERR][%s] Fail to open file, [%s]", __func__, filePath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
 	if(!(fp_out = fopen(fileFullPath, "wb"))) {
-		SECURE_SLOGE("[ERR][%s] Fail to open file, [%s]\n", __func__, fileFullPath);
+		SECURE_SLOGE("[ERR][%s] Fail to open file, [%s]", __func__, fileFullPath);
 		if(errno == EACCES)
 			ret = CERT_SVC_ERR_PERMISSION_DENIED;
 		else
@@ -152,25 +150,25 @@ int _add_certificate_to_store(const char* filePath, const char* location)
 	}
 
 	if((ret = cert_svc_util_get_file_size(filePath, &inFileLen)) != CERT_SVC_ERR_NO_ERROR) {
-		SECURE_SLOGE("[ERR][%s] Fail to get file size, [%s]\n", __func__, filePath);
+		SECURE_SLOGE("[ERR][%s] Fail to get file size, [%s]", __func__, filePath);
 		goto err;
 	}
 
 	fileContent = (char*)malloc(sizeof(char) * (int)inFileLen);
 	if(fileContent == NULL) {
-		SLOGE("[ERR][%s] Fail to allocate memory\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
 	memset(fileContent, 0x00, inFileLen);
 
 	if(fread(fileContent, sizeof(char), inFileLen, fp_in) != inFileLen) {
-		SECURE_SLOGE("[ERR][%s] Fail to read file, [%s]\n", __func__, filePath);
+		SECURE_SLOGE("[ERR][%s] Fail to read file, [%s]", __func__, filePath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
 	if(fwrite(fileContent, sizeof(char), inFileLen, fp_out) != inFileLen) {
-		SECURE_SLOGE("[ERR][%s] Fail to write file, [%s]\n", __func__, fileFullPath);
+		SECURE_SLOGE("[ERR][%s] Fail to write file, [%s]", __func__, fileFullPath);
 		ret = CERT_SVC_ERR_FILE_IO;
 		goto err;
 	}
@@ -197,7 +195,7 @@ int _delete_certificate_from_store(const char* fileName, const char* location)
 	/* initialize variable */
 	fileFullPath = (char*)malloc(sizeof(char) * CERT_SVC_MAX_FILE_NAME_SIZE);
 	if(fileFullPath == NULL) {
-		SLOGE("[ERR][%s] Fail to allocate memory.\n", __func__);
+		SLOGE("[ERR][%s] Fail to allocate memory.", __func__);
 		ret = CERT_SVC_ERR_MEMORY_ALLOCATION;
 		goto err;
 	}
@@ -208,7 +206,7 @@ int _delete_certificate_from_store(const char* fileName, const char* location)
 
 	/* delete designated certificate */
 	if(unlink(fileFullPath) == -1) {
-		SECURE_SLOGE("[ERR][%s] Fail to delete file, [%s]\n", __func__, fileName);
+		SECURE_SLOGE("[ERR][%s] Fail to delete file, [%s]", __func__, fileName);
 		if(errno == EACCES)
 			ret = CERT_SVC_ERR_PERMISSION_DENIED;
 		else

@@ -21,12 +21,12 @@
  */
 #include <vcore/ValidatorFactories.h>
 
-#include <string>
-#include <dpl/log/log.h>
-
 #include <vcore/Certificate.h>
 #include <vcore/CertificateConfigReader.h>
 #include <vcore/Config.h>
+#include <dpl/log/wrt_log.h>
+
+#include <string>
 
 namespace ValidationCore {
 
@@ -38,11 +38,10 @@ const CertificateIdentifier& createCertificateIdentifier()
         CertificateConfigReader reader;
         std::string file =
             ConfigSingleton::Instance().getXMLConfigPath();
-        LogDebug("File with fingerprint list is: " << file);
+        WrtLogD("File with fingerprint list is: %s", file.c_str());
         std::string schema =
             ConfigSingleton::Instance().getXMLSchemaPath();
-        LogDebug("File with fingerprint list schema is: " << schema);
-
+        WrtLogD("File with fingerprint list schema is: %s", schema.c_str());
         reader.initialize(file, schema);
         reader.read(certificateIdentifier);
 

@@ -17,19 +17,6 @@
 #ifndef VCORE_LOG_H
 #define VCORE_LOG_H
 
-#ifdef DPL_LOGS_ENABLED
-
-#ifndef TIZEN_DEBUG_ENABLE
-#define TIZEN_DEBUG_ENABLE
-#endif //TIZEN_DEBUG_ENABLE
-
-#else //DPL_LOGS_ENABLED
-
-#undef TIZEN_DEBUG_ENABLE
-
-#endif //DPL_LOGS_ENABLED
-
-// Log tag check
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif
@@ -41,7 +28,6 @@
 #define COLOR_WARNING "\033[38;5;202;1m" // bold orange
 #define COLOR_INFO    "\033[38;5;243;1m" // bold light gray
 #define COLOR_DEBUG   "\033[38;5;243;0m" // normal light gray
-
 #define COLOR_END     "\033[0m"
 
 #define INTERNAL_SECURE_LOG __extension__ SECURE_SLOG
@@ -50,10 +36,10 @@ do { \
     INTERNAL_SECURE_LOG(priority, LOG_TAG, color format "%s", __VA_ARGS__); \
 } while(0)
 
+
 /*
  * Please use following macros
  */
-
 #define VcoreLogD(...) VCORE_LOG(LOG_DEBUG, COLOR_DEBUG, __VA_ARGS__, COLOR_END)
 #define VcoreLogI(...) VCORE_LOG(LOG_INFO, COLOR_INFO, __VA_ARGS__, COLOR_END)
 #define VcoreLogW(...) VCORE_LOG(LOG_WARN, COLOR_WARNING, __VA_ARGS__, COLOR_END)

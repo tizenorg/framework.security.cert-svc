@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <dpl/test/test_runner.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 #include <cert-svc/cinstance.h>
 #include <cert-svc/ccert.h>
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
@@ -54,12 +54,13 @@ static CertSvcInstance instance;
 RUNNER_TEST(test01_import_and_remove_pkcs12_container) {
   const char path[] = "/opt/apps/widget/tests/pkcs12/test.p12";
   const char pass[] = "zaq12WSX";
-  char tmpn[L_tmpnam], *alias;
+  char *tmpn = "/opt/usr/media/testfilename"; // to fix prevent issue using unsecure API tmpnam 
+  char *alias;
   int result;
 
   CREATE_INSTANCE
   CertSvcString Alias, Path, Pass;
-  RUNNER_ASSERT_MSG((tmpnam(tmpn)), "tmpnam(3) failed..");
+//  RUNNER_ASSERT_MSG((tmpnam(tmpn)), "tmpnam(3) failed..");
   alias = strrchr(tmpn, '/');
   RUNNER_ASSERT_MSG(alias != NULL, "return null value from strrchr function.");
   ++alias;
@@ -134,15 +135,17 @@ RUNNER_TEST(test03_pkcs12_has_password) {
  * description: Loading certificates list from container.
  * expect:      Certyficates list from container should load correc.
  */
+
 RUNNER_TEST(test04_PFX_extension) {
   const char path[] = "/opt/apps/widget/tests/pkcs12/eastest036.pfx";
   const char pass[] = "123456";
-  char tmpn[L_tmpnam], *alias;
+  char *tmpn = "/opt/usr/media/testfilename"; // to fix prevent issue using unsecure API tmpnam 
+  char *alias;
   int result;
 
   CREATE_INSTANCE
   CertSvcString Alias, Path, Pass;
-  RUNNER_ASSERT_MSG((tmpnam(tmpn)), "tmpnam(3) failed..");
+//  RUNNER_ASSERT_MSG((tmpnam(tmpn)), "tmpnam(3) failed..");
   alias = strrchr(tmpn, '/');
   RUNNER_ASSERT_MSG(alias != NULL, "strrcher operation error.");
 
@@ -300,12 +303,13 @@ RUNNER_TEST(test04_different_gid) {
 RUNNER_TEST(test05_dup_EVP_PKEY) {
   const char path[] = "/opt/apps/widget/tests/pkcs12/eastest036.pfx";
   const char pass[] = "123456";
-  char tmpn[L_tmpnam], *alias;
+  char *tmpn = "/opt/usr/media/testfilename"; // to fix prevent issue using unsecure API tmpnam 
+  char *alias;
   int result;
 
   CREATE_INSTANCE
   CertSvcString Alias, Path, Pass;
-  RUNNER_ASSERT_MSG((tmpnam(tmpn)), "tmpnam(3) failed..");
+//  RUNNER_ASSERT_MSG((tmpnam(tmpn)), "tmpnam(3) failed..");
   alias = strrchr(tmpn, '/');
   RUNNER_ASSERT_MSG(alias != NULL, "return null value from strrchr function");
   ++alias;

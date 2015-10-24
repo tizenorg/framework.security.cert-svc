@@ -125,9 +125,8 @@ void *Thread::StaticThreadEntry(void *param)
     // Set thread specific
     int result = pthread_setspecific(g_threadSpecific.threadSpecific, This);
 
-    if (result != 0) {
-        VcoreLogE("Failed to set threadSpecific");
-    }
+    if (result)
+        VcoreLogE("Failed to set threadSpecific.");
 
     // Enter thread proc
     // Do not allow exceptions to hit pthread core

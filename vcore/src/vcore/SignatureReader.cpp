@@ -22,7 +22,6 @@
 #include <vcore/SignatureReader.h>
 
 #include <vcore/CertificateLoader.h>
-#include <dpl/log/log.h>
 
 namespace ValidationCore {
 static const std::string XML_NAMESPACE =
@@ -403,14 +402,6 @@ void SignatureReader::tokenEndX509Certificate(SignatureData &signatureData)
     }
     signatureData.m_certList.push_back(loader.getCertificatePtr());
 }
-// KW void SignatureReader::tokenEndKeyName(SignatureData &signatureData){
-// KW     CertificateLoader loader;
-// KW     if(CertificateLoader::NO_ERROR != loader.loadCertificateBasedOnSubjectName(m_parserSchema.getText())){
-// KW         LogError("Certificate could not be loaded!");
-// KW         ThrowMsg(ParserSchemaException::CertificateLoaderError, "Certificate could not be loaded.");
-// KW     }
-// KW     signatureData.m_certList.push_back(loader);
-// KW }
 
 void SignatureReader::tokenEndRSAKeyValue(SignatureData &signatureData)
 {

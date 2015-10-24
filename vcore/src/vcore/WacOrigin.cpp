@@ -113,7 +113,7 @@ void WacOrigin::parse(const char *url)
     char *output = NULL;
     if (IDNA_SUCCESS !=
         idna_to_ascii_lz(m_host.c_str(), &output, IDNA_USE_STD3_ASCII_RULES)) {
-        LogError("libidn error");
+        WrtLogE("libidn error");
         m_parseFailed = true;
         free(output);
         return;
@@ -144,7 +144,7 @@ void WacOrigin::setPort()
         m_port = PORT_HTTPS;
         return;
     } else {
-        LogDebug("Scheme " << m_scheme << " is not support by WAC2.0");
+        WrtLogD("Scheme %s is not support by WAC2.0 ", m_scheme.c_str());
         m_parseFailed = true;
     }
 }

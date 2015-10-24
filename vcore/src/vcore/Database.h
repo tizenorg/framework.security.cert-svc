@@ -24,17 +24,17 @@
 
 #include <dpl/db/thread_database_support.h>
 #include <dpl/db/sql_connection.h>
-#include <dpl/mutex.h>
 #include <dpl/thread.h>
+#include <mutex>
 
-extern VcoreDPL::Mutex g_vcoreDbQueriesMutex;
+extern std::mutex g_vcoreDbQueriesMutex;
 
 #define VCORE_DB_INTERNAL(tlsCommand, InternalType, interface)               \
     static VcoreDPL::ThreadLocalVariable<InternalType> *tlsCommand ## Ptr = NULL; \
     {                                                                        \
-        VcoreDPL::Mutex::ScopedLock lock(&g_vcoreDbQueriesMutex);                 \
+        std::lock_guard<std::mutex> lock(g_vcoreDbQueriesMutex);             \
         if (!tlsCommand ## Ptr) {                                            \
-            static VcoreDPL::ThreadLocalVariable<InternalType> tmp;               \
+            static VcoreDPL::ThreadLocalVariable<InternalType> tmp;          \
             tlsCommand ## Ptr = &tmp;                                        \
         }                                                                    \
     }                                                                        \

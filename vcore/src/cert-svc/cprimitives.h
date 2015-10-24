@@ -28,6 +28,10 @@
 #include <cert-svc/ccert.h>
 #include <cert-svc/cstring.h>
 
+#ifndef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+#define TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -64,6 +68,24 @@ void certsvc_certificate_free_x509(X509 *x509_copy);
 int certsvc_pkcs12_dup_evp_pkey(CertSvcInstance instance,
                                 CertSvcString alias,
                                 EVP_PKEY** pkey);
+
+#ifdef TIZEN_FEATURE_CERT_SVC_STORE_CAPABILITY
+/**
+ * This will return pointer to EVP_PKEY base openssl struct. This struct must
+ * be release with function certsvc_pkcs12_free_evp_pkey
+ *
+ * @param[in] instance
+ * @param[in] storeType Refers to VPN_STORE / WIFI_STORE / EMAIL_STORE / SYSTEM_STORE / ALL_STORE.
+ * @param[in] gname Pkcs12 identificator.
+ * @param[out] pkey Duplicate of private key.
+ * @return CERTSVC_SUCCESS, CERT_FAIL
+ */
+
+int certsvc_pkcs12_dup_evp_pkey_from_store(CertSvcInstance instance,
+                                           CertStoreType storeType,
+                                           CertSvcString gname,
+                                           EVP_PKEY** pkey);
+#endif
 
 void certsvc_pkcs12_free_evp_pkey(EVP_PKEY* pkey);
 

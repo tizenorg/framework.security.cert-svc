@@ -17,7 +17,7 @@
 
 #include <string.h>
 
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 #include <dpl/assert.h>
 
 namespace ValidationCore {
@@ -97,12 +97,12 @@ int asn1GeneralizedTimeToTimeT(ASN1_GENERALIZEDTIME *tm, time_t *res)
     const int DATE_BUFFER_LENGTH = 15; // YYYYMMDDHHMMSSZ
 
     if (NULL == res || NULL == tm) {
-        LogError("NULL pointer");
+        WrtLogE("NULL pointer");
         return -1;
     }
 
     if (DATE_BUFFER_LENGTH != tm->length || NULL == tm->data) {
-        LogError("Invalid ASN1_GENERALIZEDTIME");
+        WrtLogE("Invalid ASN1_GENERALIZEDTIME");
         return -1;
     }
 
@@ -116,7 +116,7 @@ int asn1GeneralizedTimeToTimeT(ASN1_GENERALIZEDTIME *tm, time_t *res)
                 &time_s.tm_min,
                 &time_s.tm_sec) < 6)
     {
-        LogError("Could not extract time data from ASN1_GENERALIZEDTIME");
+        WrtLogE("Could not extract time data from ASN1_GENERALIZEDTIME");
         return -1;
     }
 

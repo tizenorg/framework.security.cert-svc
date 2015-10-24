@@ -6,6 +6,6 @@ includedir=@INCLUDEDIR@
 Name: certification-service
 Description: Certification Service
 Version: @VERSION@
-Requires: openssl
+Requires: openssl glib-2.0
 Libs: -L${libdir} -lcert-svc
 Cflags: -I${includedir}/cert-svc/

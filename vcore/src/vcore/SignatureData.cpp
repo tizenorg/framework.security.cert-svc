@@ -107,17 +107,17 @@ const CertStoreId::Set& SignatureData::getStorageType() const
     return m_storeIdSet;
 }
 
-const CertStoreId::Type SignatureData::getVisibilityLevel() const
+CertStoreId::Type SignatureData::getVisibilityLevel() const
 {
-    if (m_storeIdSet.contains(CertStoreId::VIS_PLATFORM) == true)
+    if (m_storeIdSet.contains(CertStoreId::VIS_PLATFORM))
         return CertStoreId::VIS_PLATFORM;
-    else if (m_storeIdSet.contains(CertStoreId::VIS_PARTNER_MANUFACTURER) == true)
+    else if (m_storeIdSet.contains(CertStoreId::VIS_PARTNER_MANUFACTURER))
         return CertStoreId::VIS_PLATFORM;
-    else if (m_storeIdSet.contains(CertStoreId::VIS_PARTNER_OPERATOR) == true)
+    else if (m_storeIdSet.contains(CertStoreId::VIS_PARTNER_OPERATOR))
         return CertStoreId::VIS_PLATFORM;
-    else if (m_storeIdSet.contains(CertStoreId::VIS_PARTNER) == true)
+    else if (m_storeIdSet.contains(CertStoreId::VIS_PARTNER))
         return CertStoreId::VIS_PARTNER;
-    else if (m_storeIdSet.contains(CertStoreId::VIS_PUBLIC) == true)
+    else if (m_storeIdSet.contains(CertStoreId::VIS_PUBLIC))
         return CertStoreId::VIS_PUBLIC;
     else {
         LogWarning("Visibility level was broken.");

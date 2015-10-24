@@ -34,8 +34,8 @@ extern "C" {
 #undef LOG_TAG
 #endif
 #define LOG_TAG "CERT_SVC"
-#include <dlog.h>
 
+#include <dlog.h>
 
 #ifdef __cplusplus
 }

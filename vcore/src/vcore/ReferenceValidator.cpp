@@ -21,15 +21,18 @@
  */
 #include <vcore/ReferenceValidator.h>
 
+#include <stddef.h>
+#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fstream>
 #include <memory>
+#include <functional>
 
 #include <pcrecpp.h>
 
 #include <dpl/errno_string.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
 namespace {
 
@@ -97,7 +100,7 @@ int ReferenceValidator::Impl::hexToInt(char a) {
     if (a >= '0' && a <= '9') return a-'0';
     if (a >= 'A' && a <= 'F') return a-'A' + 10;
     if (a >= 'a' && a <= 'f') return a-'a' + 10;
-    LogError("Symbol '" << a << "' is out of scope.");
+    WrtLogE("Symbol '%c' is out of scope.", a);
     throw ERROR_DECODING_URL;
 }
 
@@ -125,7 +128,7 @@ std::string ReferenceValidator::Impl::decodeProcent(const std::string &path) {
             }
         }
     } catch (Result &) {
-        LogError("Error while decoding url path: " << path);
+        WrtLogE("Error while decoding url path: %s", path.c_str());
         throw ERROR_DECODING_URL;
     }
     return std::string(output.begin(), output.end());
@@ -138,65 +141,72 @@ ReferenceValidator::Result ReferenceValidator::Impl::dfsCheckDirectories(
 {
     std::string currentDir = m_dirpath + directory;
 
-    DIR *dp;
-    if ((dp = opendir(currentDir.c_str())) == NULL) {
-        LogError("Error opening directory: " << currentDir.c_str());
+    std::unique_ptr<DIR, std::function<int(DIR*)>>
+        dp(::opendir(currentDir.c_str()), ::closedir);
+    if (dp.get() == NULL) {
+        WrtLogE("Error opening directory: %s", currentDir.c_str());
         m_errorDescription = currentDir;
         return ERROR_OPENING_DIR;
     }
 
-    struct dirent entry;
-    struct dirent *dirp;
-    while (readdir_r(dp, &entry, &dirp) == 0 && dirp) {
-        if (!strcmp(dirp->d_name, SPECIAL_SYMBOL_CURRENT_DIR)) {
-            continue;
-        }
+    size_t len = offsetof(struct dirent, d_name)
+        + pathconf(currentDir.c_str(), _PC_NAME_MAX) + 1;
 
-        if (!strcmp(dirp->d_name, SPECIAL_SYMBOL_UPPER_DIR)) {
-            continue;
-        }
+    std::unique_ptr<struct dirent, std::function<void(void*)>>
+        pEntry(static_cast<struct dirent *>(::malloc(len)), ::free);
 
-        if (currentDir == m_dirpath && dirp->d_type == DT_REG &&
-            !strcmp(dirp->d_name, SPECIAL_SYMBOL_AUTHOR_SIGNATURE_FILE) &&
-            isAuthorSignature)
-        {
-            continue;
-        }
+    struct dirent *dirp = NULL;
 
-        if (currentDir == m_dirpath && dirp->d_type == DT_REG &&
-            isDistributorSignature(dirp->d_name)) {
+    int ret = 0;
+    while ((ret = readdir_r(dp.get(), pEntry.get(), &dirp)) == 0 && dirp) {
+
+        if (!strcmp(dirp->d_name, SPECIAL_SYMBOL_CURRENT_DIR))
             continue;
-        }
+
+        if (!strcmp(dirp->d_name, SPECIAL_SYMBOL_UPPER_DIR))
+            continue;
+
+        if (currentDir == m_dirpath
+            && dirp->d_type == DT_REG
+            && !strcmp(dirp->d_name, SPECIAL_SYMBOL_AUTHOR_SIGNATURE_FILE)
+            && isAuthorSignature)
+            continue;
+
+        if (currentDir == m_dirpath
+            && dirp->d_type == DT_REG
+            && isDistributorSignature(dirp->d_name))
+            continue;
 
         if (dirp->d_type == DT_DIR) {
-            LogDebug("Open directory: " << (directory + dirp->d_name));
+            WrtLogD("Open directory: %s", (directory + dirp->d_name).c_str());
             std::string tmp_directory = directory + dirp->d_name + "/";
             Result result = dfsCheckDirectories(referenceSet,
                                                 tmp_directory,
                                                 isAuthorSignature);
-            if (result != NO_ERROR) {
-                closedir(dp);
+            if (result != NO_ERROR)
                 return result;
-            }
+
         } else if (dirp->d_type == DT_REG) {
-            if (referenceSet.end() ==
-                referenceSet.find(directory + dirp->d_name))
-            {
-                LogDebug("Found file: " << (directory + dirp->d_name));
-                LogError("Unknown ERROR_REFERENCE_NOT_FOUND.");
-                closedir(dp);
+            WrtLogD("Found file: %s", (directory + dirp->d_name).c_str());
+
+            if (referenceSet.end() == referenceSet.find(directory + dirp->d_name)) {
+                WrtLogE("Unknown ERROR_REFERENCE_NOT_FOUND.");
                 m_errorDescription = directory + dirp->d_name;
                 return ERROR_REFERENCE_NOT_FOUND;
             }
         } else {
-            LogError("Unknown file type.");
-            closedir(dp);
+            WrtLogE("Unknown file type.");
             m_errorDescription = directory + dirp->d_name;
             return ERROR_UNSUPPORTED_FILE_TYPE;
         }
     }
 
-    closedir(dp);
+    if (ret != 0) {
+        m_errorDescription = VcoreDPL::GetErrnoString();
+        WrtLogE("readdir failed. ret: %d, errno: %d, Description: %s",
+            ret, errno, m_errorDescription.c_str());
+        return ERROR_READING_DIR;
+    }
 
     return NO_ERROR;
 }

@@ -25,7 +25,7 @@
 #include <time.h>
 
 #include <dpl/foreach.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 #include <dpl/foreach.h>
 
 #include <vcore/OCSP.h>
@@ -75,9 +75,9 @@ VerificationStatus CachedOCSP::check(const CertificateCollection &certs)
     db_status.end_entity_check = false;
 
     if (CertificateCacheDAO::getOCSPStatus(&db_status)) {
-        LogDebug("Found cache entry for OCSP");
+        WrtLogD("Found cache entry for OCSP");
         if (now < db_status.next_update_time) {
-            LogDebug("Cache response valid");
+            WrtLogD("Cache response valid");
             return db_status.ocsp_status;
         }
     }
@@ -109,9 +109,9 @@ VerificationStatus CachedOCSP::checkEndEntity(CertificateCollection &certs)
     db_status.end_entity_check = true;
 
     if (CertificateCacheDAO::getOCSPStatus(&db_status)) {
-        LogDebug("Found cache entry for OCSP");
+        WrtLogD("Found cache entry for OCSP");
         if (now < db_status.next_update_time) {
-            LogDebug("Cache response valid");
+            WrtLogD("Cache response valid");
             return db_status.ocsp_status;
         }
     }
@@ -150,7 +150,7 @@ void CachedOCSP::updateCache()
             CertificateCollection col;
             col.load(db_status->cert_chain);
             if (!col.sort()) {
-                LogError("Certificate collection does not create chain.");
+                WrtLogE("Certificate collection does not create chain.");
                 continue;
             }
 
@@ -183,7 +183,7 @@ void CachedOCSP::getCertsForEndEntity(
         const CertificateCollection &certs, CertificateList* clst)
 {
     if (NULL == clst) {
-        LogError("NULL pointer");
+        WrtLogE("NULL pointer");
         return;
     }
 

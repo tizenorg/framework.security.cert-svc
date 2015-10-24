@@ -469,19 +469,16 @@ RUNNER_TEST(test03t02_wrtsignature_validator_negative_hash_input)
             false,
             false);
 
-        if (data.isAuthorSignature()) {
+        if (data.isAuthorSignature())
             LogError("Author");
-            RUNNER_ASSERT_MSG(
-                WrtSignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_hash_path),
-                "Wrong input file but success..");
-        } else {
+        else
             LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                WrtSignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_hash_path),
-                "Wrong input file but success..");
-        }
+
+        int temp = validator.check(data, widget_negative_hash_path);
+        RUNNER_ASSERT_MSG(
+            (WrtSignatureValidator::SIGNATURE_INVALID == temp
+                || WrtSignatureValidator::SIGNATURE_DISREGARD == temp),
+            "Wrong input file but success.. Errorcode : " << wrtValidatorErrorToString(temp));
     }
 }
 
@@ -509,19 +506,16 @@ RUNNER_TEST(test03t03_wrtsignature_validator_negative_signature_input)
             false,
             false);
 
-        if (data.isAuthorSignature()) {
+        if (data.isAuthorSignature())
             LogError("Author");
-            RUNNER_ASSERT_MSG(
-                WrtSignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_signature_path),
-                "Wrong input file but success..");
-        } else {
+        else
             LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                WrtSignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_signature_path),
-                "Wrong input file but success..");
-        }
+
+        int temp = validator.check(data, widget_negative_signature_path);
+        RUNNER_ASSERT_MSG(
+            (WrtSignatureValidator::SIGNATURE_INVALID == temp
+                || WrtSignatureValidator::SIGNATURE_DISREGARD == temp),
+            "Wrong input file but success.. Errorcode : " << wrtValidatorErrorToString(temp));
     }
 }
 
@@ -549,19 +543,14 @@ RUNNER_TEST(test03t04_wrtsignature_validator_partner)
             false,
             false);
 
+        int temp = validator.check(data, widget_partner_path);
+        RUNNER_ASSERT_MSG(
+            WrtSignatureValidator::SIGNATURE_VERIFIED == temp,
+            "Wrong input file but success.. Errorcode : " << wrtValidatorErrorToString(temp));
         if (data.isAuthorSignature()) {
             LogError("Author");
-            RUNNER_ASSERT_MSG(
-                WrtSignatureValidator::SIGNATURE_VERIFIED ==
-                    validator.check(data, widget_partner_path),
-                "Wrong input file but success..");
         } else {
             LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                WrtSignatureValidator::SIGNATURE_VERIFIED ==
-                    validator.check(data, widget_partner_path),
-                "Wrong input file but success..");
-
             RUNNER_ASSERT_MSG(
                     data.getVisibilityLevel() == CertStoreId::VIS_PARTNER,
                     "visibility check failed.");
@@ -747,19 +736,16 @@ RUNNER_TEST(test04t02_signature_validator_negative_hash_input)
             false,
             false);
 
-        if (data.isAuthorSignature()) {
+        if (data.isAuthorSignature())
             LogError("Author");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_hash_path),
-                "Wrong input file but success..");
-        } else {
+        else
             LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_hash_path),
-                "Wrong input file but success..");
-        }
+
+        int temp = validator.check(data, widget_negative_hash_path);
+        RUNNER_ASSERT_MSG(
+            (WrtSignatureValidator::SIGNATURE_INVALID == temp
+                || WrtSignatureValidator::SIGNATURE_DISREGARD == temp),
+                "Wrong input file but success.. Errorcode : " << wrtValidatorErrorToString(temp));
     }
 }
 
@@ -787,19 +773,16 @@ RUNNER_TEST(test04t03_signature_validator_negative_signature_input)
             false,
             false);
 
-        if (data.isAuthorSignature()) {
+        if (data.isAuthorSignature())
             LogError("Author");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_signature_path),
-                "Wrong input file but success..");
-        } else {
+        else
             LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_INVALID ==
-                    validator.check(data, widget_negative_signature_path),
-                "Wrong input file but success..");
-        }
+
+        int temp = validator.check(data, widget_negative_signature_path);
+        RUNNER_ASSERT_MSG(
+            (WrtSignatureValidator::SIGNATURE_INVALID == temp
+                || WrtSignatureValidator::SIGNATURE_DISREGARD == temp),
+                "Wrong input file but success.. Errorcode : " << wrtValidatorErrorToString(temp));
     }
 }
 
@@ -827,19 +810,14 @@ RUNNER_TEST(test04t04_signature_validator_partner)
             false,
             false);
 
+        int temp = validator.check(data, widget_partner_path);
+            RUNNER_ASSERT_MSG(SignatureValidator::SIGNATURE_VERIFIED == temp,
+                "Wrong input file but success.. Errorcode : " << wrtValidatorErrorToString(temp));
+
         if (data.isAuthorSignature()) {
             LogError("Author");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_VERIFIED ==
-                    validator.check(data, widget_partner_path),
-                "Wrong input file but success..");
         } else {
             LogError("Distributor");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_VERIFIED ==
-                    validator.check(data, widget_partner_path),
-                "Wrong input file but success..");
-
             RUNNER_ASSERT_MSG(
                     data.getVisibilityLevel() == CertStoreId::VIS_PARTNER,
                     "visibility check failed.");
@@ -989,8 +967,11 @@ RUNNER_TEST(test05t01_signature_reference)
         }
 
         ReferenceValidator val(widget_path);
-        RUNNER_ASSERT(
-            ReferenceValidator::NO_ERROR == val.checkReferences(data));
+        int temp = val.checkReferences(data);
+        RUNNER_ASSERT_MSG(ReferenceValidator::NO_ERROR == temp,
+                "File[" << iter->getFileName()
+                << "] FileNumber[" << iter->getFileNumber()
+                << "] Errorcode : " << refValidatorErrorToString(temp));
     }
 }
 
@@ -1007,8 +988,9 @@ RUNNER_TEST(test05t02_signature_reference_encoding_dummy)
     referenceSet.insert("encoding test.empty");
     data.setReference(referenceSet);
 
-    RUNNER_ASSERT(
-        ReferenceValidator::NO_ERROR == val.checkReferences(data));
+    int temp = val.checkReferences(data);
+    RUNNER_ASSERT_MSG(ReferenceValidator::NO_ERROR == temp,
+            "Errorcode : " << refValidatorErrorToString(temp));
 }
 
 /*
@@ -1024,8 +1006,9 @@ RUNNER_TEST(test05t03_signature_reference_encoding_negative)
     referenceSet.insert("encoding test");
     data.setReference(referenceSet);
 
-    RUNNER_ASSERT(
-        ReferenceValidator::ERROR_REFERENCE_NOT_FOUND == val.checkReferences(data));
+    int temp = val.checkReferences(data);
+    RUNNER_ASSERT_MSG(ReferenceValidator::ERROR_REFERENCE_NOT_FOUND == temp,
+            "Errorcode : " << refValidatorErrorToString(temp));
 }
 
 /*
@@ -1042,8 +1025,9 @@ RUNNER_TEST(test05t04_signature_reference_encoding_space)
     referenceSet.insert("encoding%20test.empty");
     data.setReference(referenceSet);
 
-    RUNNER_ASSERT(
-        ReferenceValidator::NO_ERROR == val.checkReferences(data));
+    int temp = val.checkReferences(data);
+    RUNNER_ASSERT_MSG(ReferenceValidator::NO_ERROR == temp,
+            "Errorcode : " << refValidatorErrorToString(temp));
 }
 
 /*
@@ -1060,8 +1044,9 @@ RUNNER_TEST(test05t05_signature_reference_encoding_space_negative)
     referenceSet.insert("encoding%20test");
     data.setReference(referenceSet);
 
-    RUNNER_ASSERT(
-        ReferenceValidator::ERROR_REFERENCE_NOT_FOUND == val.checkReferences(data));
+    int temp = val.checkReferences(data);
+    RUNNER_ASSERT_MSG(ReferenceValidator::ERROR_REFERENCE_NOT_FOUND == temp,
+            "Errorcode : " << refValidatorErrorToString(temp));
 }
 
 /*
@@ -1078,8 +1063,9 @@ RUNNER_TEST(test05t06_signature_reference_encoding)
     referenceSet.insert("e%6Ec%6Fding%20te%73%74.e%6d%70ty");
     data.setReference(referenceSet);
 
-    RUNNER_ASSERT(
-        ReferenceValidator::NO_ERROR == val.checkReferences(data));
+    int temp = val.checkReferences(data);
+    RUNNER_ASSERT_MSG(ReferenceValidator::NO_ERROR == temp,
+            "Errorcode : " << refValidatorErrorToString(temp));
 }
 
 /*
@@ -1096,68 +1082,9 @@ RUNNER_TEST(test05t07_signature_reference_encoding_negative)
     referenceSet.insert("e%6Ec%6Fding%%0test%2ete%73%74");
     data.setReference(referenceSet);
 
-    RUNNER_ASSERT(
-        ReferenceValidator::ERROR_DECODING_URL == val.checkReferences(data));
-}
-
-/*
- * test: Integration test of SignatureFinder, SignatureReader,
- * SignatureValidator, ReferenceValidator
- * description: As above but this test also checks reference from signatures.
- * expected: All reference checks should return NO_ERROR.
- */
-RUNNER_TEST(test05t08_signature_reference)
-{
-    SignatureFileInfoSet signatureSet;
-    SignatureFinder signatureFinder(widget_path);
-    RUNNER_ASSERT_MSG(
-        SignatureFinder::NO_ERROR == signatureFinder.find(signatureSet),
-        "SignatureFinder failed");
-
-    SignatureFileInfoSet::reverse_iterator iter = signatureSet.rbegin();
-
-    for (; iter != signatureSet.rend(); ++iter) {
-        SignatureData data(widget_path + iter->getFileName(),
-                           iter->getFileNumber());
-        SignatureReader xml;
-        xml.initialize(data, GetSignatureXmlSchema());
-        xml.read(data);
-
-        SignatureValidator sval(
-            SignatureValidator::WAC20,
-            false,
-            false,
-            false);
-
-        if (data.isAuthorSignature()) {
-            LogError("Author");
-            RUNNER_ASSERT_MSG(
-                SignatureValidator::SIGNATURE_DISREGARD ==
-                    sval.check(data, widget_path),
-                "Validation failed");
-        } else {
-            if (data.getSignatureNumber() == 1)
-            {
-                LogError("Distributor1");
-                RUNNER_ASSERT_MSG(
-                    SignatureValidator::SIGNATURE_DISREGARD ==
-                        sval.check(data, widget_path),
-                        "Validation failed");
-            }
-            else
-            {
-                LogError("DistributorN");
-                RUNNER_ASSERT_MSG(
-                    SignatureValidator::SIGNATURE_VERIFIED ==
-                        sval.check(data, widget_path),
-                        "Validation failed");
-            }
-        }
-
-        ReferenceValidator val(widget_path);
-        RUNNER_ASSERT(
-            ReferenceValidator::NO_ERROR == val.checkReferences(data));
-    }
+    int temp = val.checkReferences(data);
+    RUNNER_ASSERT_MSG(ReferenceValidator::ERROR_DECODING_URL == temp,
+            "Errorcode : " << refValidatorErrorToString(temp));
 }
 
 /*

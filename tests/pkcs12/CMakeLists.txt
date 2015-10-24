@@ -17,30 +17,22 @@
 # @version     1.0
 # @brief       This package provides bacis check of internal OpenSSL's PKCS#12 routines.
 #
-INCLUDE(FindPkgConfig)
-SET(TARGET_PKCS12_TEST "cert-svc-tests-pkcs12")
-SET(TARGET_PKCS12_TEST_AUX "cert-svc-tests-pkcs12-aux")
-
 
 SET(PKCS12_TEST_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/pkcs12_test.cpp
-    ${PROJECT_SOURCE_DIR}/tests/pkcs12/test_cases.cpp
+    #${PROJECT_SOURCE_DIR}/tests/pkcs12/test_cases.cpp
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/new_test_cases.cpp
     ${VCORE_DPL_SOURCES}
     )
 
 INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/vcore/src
     ${PROJECT_SOURCE_DIR}/tests/pkcs12
-    ${PKCS12_TEST_DEP_INCLUDE_DIRS}
-    ${VCOREC_TEST_DEP_INCLUDE_DIRS}
-    ${VCORE_DPL_INCLUDE}
     )
 
 ADD_EXECUTABLE(${TARGET_PKCS12_TEST} ${PKCS12_TEST_SOURCES})
 
 TARGET_LINK_LIBRARIES(${TARGET_PKCS12_TEST}
-    ${TARGET_PKCS12_TEST_LIB}
-    ${PKCS12_TEST_DEP_LIBRARIES}
     ${TARGET_VCORE_LIB}
     ${VCORE_TEST_DEP_LIBRARIES}
     )
@@ -66,19 +58,14 @@ SET(PKCS12_TEST_SOURCES_AUX
 INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/vcore/src
     ${PROJECT_SOURCE_DIR}/tests/pkcs12
-    ${PKCS12_TEST_DEP_INCLUDE_DIRS}
-    ${VCOREC_TEST_DEP_INCLUDE_DIRS}
-    ${VCORE_DPL_INCLUDE}
 )
 
 ADD_EXECUTABLE(${TARGET_PKCS12_TEST_AUX} ${PKCS12_TEST_SOURCES_AUX})
 
 TARGET_LINK_LIBRARIES(
     ${TARGET_PKCS12_TEST_AUX}
-    ${TARGET_PKCS12_TEST_LIB}
-    ${PKCS12_TEST_DEP_LIBRARIES}
     ${TARGET_VCORE_LIB}
-    ${VCOREC_TEST_DEP_LIBRARIES}
+    ${VCORE_TEST_DEP_LIBRARIES}
 )
 
 INSTALL(TARGETS ${TARGET_PKCS12_TEST_AUX}
@@ -101,6 +88,18 @@ INSTALL(FILES
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/filip.pkcs12
     ${PROJECT_SOURCE_DIR}/tests/pkcs12/tizen_test_certs.p12
     DESTINATION /opt/apps/widget/tests/pkcs12/
+)
+
+INSTALL(FILES
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/without_pass.p12
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/Invalidcrt.crt
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/pfxtest.pfx
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/Testing.crt
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/test.pfx
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/wifi-server.pem
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/wifiserver.pfx
+    ${PROJECT_SOURCE_DIR}/tests/pkcs12/wifiuser.p12
+    DESTINATION /opt/share/cert-svc/tests/
 )
 
 INSTALL(FILES

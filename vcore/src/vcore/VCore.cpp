@@ -30,7 +30,7 @@
 #include <glib-object.h>
 
 #include <dpl/assert.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
 namespace {
@@ -52,14 +52,14 @@ void AttachToThreadRO(void)
     if (check) {
         check = false;
         Assert(ThreadInterface().CheckTableExist(DB_CHECKSUM_STR) &&
-               "Not a valid vcore database version");
+               "Not a valid vcore database version");    
 	}
 #endif
 }
 
 void AttachToThreadRW(void)
 {
-#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL	    
 	Assert(threadInterface);
     static bool check = true;
     threadInterface->AttachToThread(
@@ -90,9 +90,9 @@ bool VCoreInit(const std::string& configFilePath,
                const std::string& configSchemaPath,
                const std::string& databasePath)
 {
-#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL
+#ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL    
 	if(threadInterface) {
-        LogDebug("Already Initialized");
+        WrtLogD("Already Initialized");
         return true;
     }
 
@@ -100,16 +100,13 @@ bool VCoreInit(const std::string& configFilePath,
         databasePath.c_str(),
         VcoreDPL::DB::SqlConnection::Flag::UseLucene);
 #endif
+    (void) databasePath;
     SSL_library_init();
-//    g_thread_init(NULL);
-    g_type_init();
 
-    LogDebug("Initializing VCore");
+    WrtLogD("Initializing VCore");
     Config &globalConfig = ConfigSingleton::Instance();
-    globalConfig.setXMLConfigPath(configFilePath) &&
-        globalConfig.setXMLSchemaPath(configSchemaPath);
-
-    return true;
+    return (globalConfig.setXMLConfigPath(configFilePath)
+        && globalConfig.setXMLSchemaPath(configSchemaPath));
 }
 
 void VCoreDeinit()

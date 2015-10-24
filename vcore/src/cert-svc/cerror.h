@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011 Samsung Electronics Co., Ltd All Rights Reserved
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd All Rights Reserved
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -27,19 +27,21 @@
 extern "C" {
 #endif
 
-#define CERTSVC_TRUE              (1)
-#define CERTSVC_FALSE             (0)
+#define CERTSVC_TRUE                 (1)
+#define CERTSVC_FALSE                (0)
 
-#define CERTSVC_SUCCESS           (1)
-#define CERTSVC_FAIL              (0)    /* Openssl internal error. */
-#define CERTSVC_BAD_ALLOC         (-2)   /* Memmory allcation error. */
-//#define CERTSVC_FILE_NOT_FOUND    (-3)   /* Certificate file does not exists. */
-#define CERTSVC_WRONG_ARGUMENT    (-4)   /* Function argumnet is wrong. */
-#define CERTSVC_INVALID_ALGORITHM (-5)   /* Algorithm is not supported. */
-#define CERTSVC_INVALID_SIGNATURE (-6)   /* Signature and message does not match. */
-#define CERTSVC_IO_ERROR          (-7)   /* Certificate file IO error. */
-#define CERTSVC_INVALID_PASSWORD  (-8)   /* Certificate container password mismatch. */
-#define CERTSVC_DUPLICATED_ALIAS  (-9)   /* User-provided alias is aleady taken. */
+#define CERTSVC_SUCCESS              (1)
+#define CERTSVC_FAIL                 (0)    /* Openssl internal error. */
+#define CERTSVC_BAD_ALLOC            (-2)   /* Memmory allcation error. */
+#define CERTSVC_WRONG_ARGUMENT       (-4)   /* Function argumnet is wrong. */
+#define CERTSVC_INVALID_ALGORITHM    (-5)   /* Algorithm is not supported. */
+#define CERTSVC_INVALID_SIGNATURE    (-6)   /* Signature and message does not match. */
+#define CERTSVC_IO_ERROR             (-7)   /* Certificate file IO error. */
+#define CERTSVC_INVALID_PASSWORD     (-8)   /* Certificate container password mismatch. */
+#define CERTSVC_DUPLICATED_ALIAS     (-9)   /* User-provided alias is aleady taken. */
+#define CERTSVC_ALIAS_DOES_NOT_EXIST (-10)  /* Alias no exist in store. */
+#define CERTSVC_INVALID_STORE_TYPE   (-11)  /* User-provided invalid import type for storing in system/email/wifi/vpn store. */
+#define CERTSVC_INVALID_STATUS       (-12)  /* User-provided invalid status while stetting the status for the store system/email/wifi/vpn store. */
 
 #ifdef __cplusplus
 }

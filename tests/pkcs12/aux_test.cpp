@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dpl/test/test_runner.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 #include <cert-svc/cinstance.h>
 #include <cert-svc/ccert.h>
 #ifdef TIZEN_FEATURE_CERT_SVC_OCSP_CRL

@@ -19,5 +19,7 @@
 int addCertToStore(const char *name);
 long int removeCertFromStore(const char *subjectName, const char *issuerName);
 int removeCertGivenByFilename(const char *name);
+const char *wrtValidatorErrorToString(int error);
+const char *refValidatorErrorToString(int error);
 
 #endif

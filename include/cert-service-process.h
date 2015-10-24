@@ -56,7 +56,7 @@ int VerifyCallbackfunc(int ok, X509_STORE_CTX* store);
 int _get_all_certificates(char* const *paths, cert_svc_filename_list **lst);
 
 int _verify_certificate(cert_svc_mem_buff* certBuf, cert_svc_linked_list** certList, cert_svc_filename_list* fileNames, int* validity);
-int _verify_certificate_with_caflag(cert_svc_mem_buff* certBuf, cert_svc_linked_list** certList, int checkCaFlag, cert_svc_filename_list* fileNames, int* validity);
+int _verify_certificate_with_caflag(cert_svc_mem_buff* certBuf, cert_svc_linked_list** certList, int checkCaFlag, int checkSamsungCertFlag, cert_svc_filename_list* fileNames, int* validity);
 int _verify_signature(cert_svc_mem_buff* certBuf, unsigned char* message, int msgLen, unsigned char* signature, char* algo, int* validity);
 int _extract_certificate_data(cert_svc_mem_buff* cert, cert_svc_cert_descriptor* certDesc);
 int _search_certificate(cert_svc_filename_list** fileNames, search_field fldName, char* fldData);
@@ -71,7 +71,11 @@ int release_cert_list(cert_svc_linked_list* certList);
 int release_filename_list(cert_svc_filename_list* fileNames);
 
 int get_visibility(CERT_CONTEXT* context, int* visibility);
-	
+int get_certificate_type(CERT_CONTEXT* context, int* cert_type);
+
+int verify_package_signature_file(const char* sig_xml_file, const char* root_ca);
+int verify_package_signature_with_references(const char* sig_xml_file, const char* root_ca, const GList* ref_list);
+
 #ifdef __cplusplus
 }
 #endif

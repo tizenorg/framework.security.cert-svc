@@ -1,0 +1,12 @@
+[Socket]
+ListenStream=/tmp/CertSocket
+SocketUser=system
+SocketGroup=system
+SocketMode=0777
+SmackLabelIPIn=cert-svc
+SmackLabelIPOut=@
+
+Service=cert-server.service
+
+[Install]
+WantedBy=sockets.target

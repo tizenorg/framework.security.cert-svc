@@ -20,5 +20,6 @@
  * @brief   This file contains the definition of webruntime database
  */
 #include <vcore/Database.h>
+#include <mutex>
 
-VcoreDPL::Mutex g_vcoreDbQueriesMutex;
+std::mutex g_vcoreDbQueriesMutex;

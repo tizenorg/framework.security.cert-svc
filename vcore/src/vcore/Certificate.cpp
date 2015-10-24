@@ -29,7 +29,7 @@
 #include <openssl/bn.h>
 
 #include <dpl/assert.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
 #include <vcore/Base64.h>
 #include <vcore/TimeConversion.h>
@@ -69,7 +69,7 @@ Certificate::Certificate(const std::string &der,
         base64.reset();
         base64.append(der);
         if (!base64.finalize()) {
-            LogWarning("Error during decoding");
+            WrtLogW("Error during decoding");
         }
         tmp = base64.get();
         ptr = reinterpret_cast<const unsigned char*>(tmp.c_str());
@@ -120,7 +120,7 @@ std::string Certificate::getBase64(void) const
 bool Certificate::isSignedBy(const CertificatePtr &parent) const
 {
     if (!parent) {
-        LogDebug("Invalid certificate parameter.");
+        WrtLogD("Invalid certificate parameter.");
         return false;
     }
     return 0 == X509_NAME_cmp(X509_get_subject_name(parent->m_x509),
@@ -130,7 +130,7 @@ bool Certificate::isSignedBy(const CertificatePtr &parent) const
 Certificate::Fingerprint Certificate::getFingerprint(
         Certificate::FingerprintType type) const
 {
-    size_t fingerprintlength = EVP_MAX_MD_SIZE;
+    unsigned int fingerprintlength = EVP_MAX_MD_SIZE;
     unsigned char fingerprint[EVP_MAX_MD_SIZE];
     Fingerprint raw;
 
@@ -318,10 +318,10 @@ Certificate::AltNameSet Certificate::getAlternativeNameDNS() const
             }
             else {
                 set.insert(std::string(temp));
-                LogDebug("FOUND GEN_DNS: " << temp);
+                WrtLogD("FOUND GEN_DNS: %s", temp);
             }
         } else {
-            LogDebug("FOUND GEN TYPE ID: " << namePart->type);
+            WrtLogD("FOUND GEN TYPE ID: %d", namePart->type);
         }
     }
     return set;
@@ -397,7 +397,7 @@ Certificate::getCrlUris() const
                 NULL,
                 NULL));
     if (!distPoints) {
-        LogDebug("No distribution points in certificate.");
+        WrtLogD("No distribution points in certificate.");
         return result;
     }
 
@@ -405,7 +405,7 @@ Certificate::getCrlUris() const
     for (int i = 0; i < count; ++i) {
         DIST_POINT* point = sk_DIST_POINT_value(distPoints, i);
         if (!point) {
-            LogError("Failed to get distribution point.");
+            WrtLogE("Failed to get distribution point.");
             continue;
         }
         if (point->distpoint != NULL &&
@@ -420,7 +420,7 @@ Certificate::getCrlUris() const
                     char *crlUri =
                     reinterpret_cast<char*>(name->d.ia5->data);
                     if (!crlUri) {
-                        LogError("Failed to get URI.");
+                        WrtLogE("Failed to get URI.");
                         continue;
                     }
                     result.push_back(crlUri);

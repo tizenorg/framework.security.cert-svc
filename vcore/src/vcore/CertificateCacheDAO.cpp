@@ -26,7 +26,7 @@
 #include <vcore/VCorePrivate.h>
 
 #include <dpl/foreach.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 #include <dpl/db/orm.h>
 #include <orm_generator_vcore.h>
 #include <vcore/Database.h>
@@ -84,7 +84,7 @@ void CertificateCacheDAO::setOCSPStatus(const std::string& cert_chain,
 bool CertificateCacheDAO::getOCSPStatus(OCSPCachedStatus* cached_status)
 {
     if (NULL == cached_status) {
-        LogError("NULL pointer");
+        WrtLogE("NULL pointer");
         return false;
     }
     Try {
@@ -105,7 +105,7 @@ bool CertificateCacheDAO::getOCSPStatus(OCSPCachedStatus* cached_status)
             return true;
         }
 
-        LogDebug("Cached OCSP status not found");
+        WrtLogD("Cached OCSP status not found");
         return false;
     }
     Catch(VcoreDPL::DB::SqlConnection::Exception::Base) {
@@ -117,7 +117,7 @@ void CertificateCacheDAO::getOCSPStatusList(
         OCSPCachedStatusList* cached_status_list)
 {
     if (NULL == cached_status_list) {
-        LogError("NULL pointer");
+        WrtLogE("NULL pointer");
         return;
     }
     Try {
@@ -183,7 +183,7 @@ void CertificateCacheDAO::setCRLResponse(const std::string& distribution_point,
 bool CertificateCacheDAO::getCRLResponse(CRLCachedData* cached_data)
 {
     if (NULL == cached_data) {
-        LogError("NULL pointer");
+        WrtLogE("NULL pointer");
         return false;
     }
     Try {
@@ -200,7 +200,7 @@ bool CertificateCacheDAO::getCRLResponse(CRLCachedData* cached_data)
             return true;
         }
 
-        LogDebug("Cached CRL not found");
+        WrtLogD("Cached CRL not found");
         return false;
     }
     Catch(VcoreDPL::DB::SqlConnection::Exception::Base) {
@@ -212,7 +212,7 @@ void CertificateCacheDAO::getCRLResponseList(
         CRLCachedDataList* cached_data_list)
 {
     if (NULL == cached_data_list) {
-        LogError("NULL pointer");
+        WrtLogE("NULL pointer");
         return;
     }
     Try {

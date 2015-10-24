@@ -19,8 +19,6 @@
 # @version     1.0
 # @brief
 #
-INCLUDE(FindPkgConfig)
-SET(TARGET_VCORE_TEST "cert-svc-tests-vcore")
 
 SET(VCORE_TESTS_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/vcore/vcore_tests.cpp
@@ -30,22 +28,20 @@ SET(VCORE_TESTS_SOURCES
     ${VCORE_DPL_SOURCES}
     )
 
-IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+IF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 SET(VCORE_TESTS_SOURCES
-	${PROJECT_SOURCE_DIR}/tests/vcore/vcore_tests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/vcore/vcore_tests.cpp
     ${PROJECT_SOURCE_DIR}/tests/vcore/TestCases.cpp
     ${PROJECT_SOURCE_DIR}/tests/vcore/TestEnv.cpp
     ${PROJECT_SOURCE_DIR}/tests/vcore/file_input_mapping.cpp
-	${PROJECT_SOURCE_DIR}/tests/vcore/TestCRL.cpp
+    ${PROJECT_SOURCE_DIR}/tests/vcore/TestCRL.cpp
     ${VCORE_DPL_SOURCES}
-	)
-ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+    )
+ENDIF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 
 INCLUDE_DIRECTORIES(
     ${PROJECT_SOURCE_DIR}/vcore/src
     ${PROJECT_SOURCE_DIR}/tests/vcore
-    ${VCORE_TEST_DEP_INCLUDE_DIRS}
-    ${VCORE_DPL_INCLUDE}
     )
 
 ADD_EXECUTABLE(${TARGET_VCORE_TEST} ${VCORE_TESTS_SOURCES})
@@ -66,7 +62,7 @@ INSTALL(TARGETS ${TARGET_VCORE_TEST}
                 WORLD_EXECUTE
     )
 
-IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+IF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 INSTALL(FILES ${PROJECT_SOURCE_DIR}/tests/vcore/cert-svc-tests-vcore-ocsp-server.sh
     DESTINATION /usr/bin
     PERMISSIONS OWNER_READ
@@ -77,7 +73,7 @@ INSTALL(FILES ${PROJECT_SOURCE_DIR}/tests/vcore/cert-svc-tests-vcore-ocsp-server
                 WORLD_READ
                 WORLD_EXECUTE
     )
-ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+ENDIF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 
 ADD_CUSTOM_COMMAND(TARGET ${TARGET_VCORE_TEST} POST_BUILD
     COMMAND ${PROJECT_SOURCE_DIR}/tests/vcore/certificate-generator/create_certs.sh
@@ -156,16 +152,16 @@ INSTALL(FILES
     /opt/apps/widget/tests/vcore_keys
     )
 
-IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+IF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 INSTALL(FILES
-	${PROJECT_SOURCE_DIR}/tests/vcore/test-cases/keys/ocsp_level0deprecated.crt
+    ${PROJECT_SOURCE_DIR}/tests/vcore/test-cases/keys/ocsp_level0deprecated.crt
     ${PROJECT_SOURCE_DIR}/tests/vcore/test-cases/keys/ocsp_level1.crt
     ${PROJECT_SOURCE_DIR}/tests/vcore/test-cases/keys/ocsp_level2.crt
     ${PROJECT_SOURCE_DIR}/tests/vcore/test-cases/keys/ocsp_rootca.crt
-	DESTINATION
+    DESTINATION
     /opt/apps/widget/tests/vcore_keys
     )
-ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+ENDIF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 
 INSTALL(FILES
     ${PROJECT_SOURCE_DIR}/tests/vcore/test-cases/config/fin_list.xml
@@ -195,14 +191,14 @@ INSTALL(FILES
     /opt/apps/widget/tests/vcore_certs/
 )
 
-IF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+IF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 INSTALL(FILES
-	${PROJECT_SOURCE_DIR}/tests/vcore/certificate-generator/cacrl1.pem
+    ${PROJECT_SOURCE_DIR}/tests/vcore/certificate-generator/cacrl1.pem
     ${PROJECT_SOURCE_DIR}/tests/vcore/certificate-generator/cacrl2.pem
-	DESTINATION
+    DESTINATION
     /opt/apps/widget/tests/vcore_certs/
-	)
-ENDIF(DEFINED TIZEN_FEAT_PROFILE_CERT_SVC_OCSP_CRL)
+    )
+ENDIF(DEFINED TIZEN_FEAT_CERTSVC_OCSP_CRL)
 
 INSTALL(DIRECTORY
     ${PROJECT_SOURCE_DIR}/tests/vcore/certificate-generator/demoCA

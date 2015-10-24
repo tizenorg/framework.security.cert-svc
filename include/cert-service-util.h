@@ -42,11 +42,15 @@ int cert_svc_util_get_file_size(const char* filepath, unsigned long int* length)
 int cert_svc_util_load_file_to_buffer(const char* filePath, cert_svc_mem_buff* certBuf);
 int cert_svc_util_load_PFX_file_to_buffer(const char* filePath, cert_svc_mem_buff* certBuf, cert_svc_linked_list** certLink, unsigned char** privateKey, int* priKeyLen, char* passPhrase);
 int cert_svc_util_get_cert_path(const char* fileName, const char* location, char* retBuf);
-int cert_svc_util_base64_encode(char* in, int inLen, char* out, int* outLen);
-int cert_svc_util_base64_decode(char* in, int inLen, char* out, int* outLen);
+int cert_svc_util_base64_encode(const unsigned char* in, int inLen, unsigned char* out, int* outLen);
+int cert_svc_util_base64_decode(const unsigned char* in, int inLen, unsigned char* out, int* outLen);
 int cert_svc_util_get_extension(const char* filePath, cert_svc_mem_buff* certBuf);
 int push_cert_into_linked_list(cert_svc_linked_list** certLink, X509* popedCert);
 int get_visibility_by_fingerprint(const char* fingerprint, int* visibility);
+int get_visibility_by_certificate(const unsigned char* cert_data, int data_len, int* visibility);
+int get_type_by_fingerprint(const char* fingerprint, int* cert_type);
+int get_certificate_fingerprint(const unsigned char *cert, int cert_size, char** fingerprint);
+
 #ifdef __cplusplus
 }
 #endif	// __cplusplus

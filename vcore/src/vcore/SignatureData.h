@@ -57,8 +57,8 @@ public:
     std::string getSignatureFileName() const;
     std::string getRoleURI() const;
     std::string getProfileURI() const;
-    const CertStoreId::Set& getStorageType(void) const;
-	const CertStoreId::Type getVisibilityLevel(void) const;
+    const CertStoreId::Set& getStorageType() const;
+    CertStoreId::Type getVisibilityLevel() const;
     const IMEIList& getIMEIList() const;
     const MEIDList& getMEIDList() const;
     CertificatePtr getEndEntityCertificatePtr() const;

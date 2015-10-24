@@ -20,7 +20,7 @@
  * @brief       Simple c++ interface for libxml2.
  */
 #include <dpl/assert.h>
-#include <dpl/log/log.h>
+#include <dpl/log/wrt_log.h>
 
 #include <vcore/SaxReader.h>
 
@@ -47,7 +47,7 @@ void SaxReader::initialize(
 {
     Assert(m_reader == 0 && "Double initialization of SaxReader");
 
-    LogDebug("SaxReader opening file: " << filename);
+    WrtLogD("SaxReader opening file: %s", filename.c_str());
 
     m_reader = xmlNewTextReaderFilename(filename.c_str());
 
@@ -152,7 +152,6 @@ std::string SaxReader::attribute(const std::string &token, ThrowType throwStatus
     xmlChar *attr = xmlTextReaderGetAttribute(m_reader, BAD_CAST(token.c_str()));
     if (!attr) {
         if (throwStatus == THROW_DISABLE) {
-            LogError("Error in reading attribute.");
             return std::string();
         }
         else {
@@ -188,7 +187,6 @@ std::string SaxReader::namespaceURI()
 {
     xmlChar *name = xmlTextReaderNamespaceUri(m_reader);
     if (!name) {
-        LogError("Error in reading namespaceURI");
         return std::string();
     }
 
