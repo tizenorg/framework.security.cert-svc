@@ -128,6 +128,7 @@ else
 fi
 rm /usr/bin/cert_svc_create_clean_db.sh
 %endif #tizen_feature_certsvc_ocsp_crl
+chsmack -a "_" /opt/share/cert-svc
 
 %postun
 /sbin/ldconfig
